@@ -1,0 +1,27 @@
+# Intellij
+*.iml
+.idea
+
+# npm
+node_modules
+yarn-error.log
+
+# build
+/main.js
+*.js.map
+.log
+
+# jest coverage files
+/coverage
+
+# osx
+.DS_Store
+
+# asdf
+.tool-versions
+
+# files in sample vaults
+.hotreload
+
+# Backup files.
+*.bak
