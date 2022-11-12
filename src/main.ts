@@ -1,9 +1,7 @@
-import { Editor, MarkdownView, Plugin } from 'obsidian';
+import { Editor, EditorPosition, MarkdownView, Plugin } from 'obsidian';
+import { Point } from './Ast';
 import { GrowCommand } from './GrowCommand';
-import { SimpleText, Node as SimpleTextNode } from './SimpleText';
-import { MarkdownASTBuilder, Mdast, MdastNode } from './Mdast';
 import { Pos } from './Pos';
-import { Antlr } from './Antlr';
 
 type StructuralEditSettings = {
     /** If set svg are converted to bitmap */
@@ -32,9 +30,16 @@ export default class StructuralEditPlugin extends Plugin {
                 console.log('selection end', selection.end);
 
                 const newSelection = GrowCommand.growSelection(view.data, selection);
-                editor.setSelection(newSelection.start, newSelection.end);
+                editor.setSelection(this.toEditorPosition(newSelection.start), this.toEditorPosition(newSelection.end));
             },
         });
+    }
+
+    toEditorPosition(pos: Point): EditorPosition {
+        return {
+            line: pos.line - 1,
+            ch: pos.column - 1,
+        };
     }
 
     async loadSettings() {

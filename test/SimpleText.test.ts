@@ -1,20 +1,20 @@
-import type { Node } from '../src/SimpleText';
+import type { AstNode } from '../src/Ast';
 import { SimpleText } from '../src/SimpleText';
 import { TestUtil } from './util';
 import CustomMatcherResult = jest.CustomMatcherResult;
 import parseRange = TestUtil.parseRange;
 
 function assertTreeMatches(
-    tree: Node,
-    expected: Node,
+    tree: AstNode,
+    expected: AstNode,
     options: { verifyPositions: boolean } = { verifyPositions: true },
 ) {
     try {
         expect(tree.type).toBe(expected.type);
 
         if (options.verifyPositions) {
-            expect(tree.start).toEqual(expected.start);
-            expect(tree.end).toEqual(expected.end);
+            expect(tree.position.start).toEqual(expected.position.start);
+            expect(tree.position.end).toEqual(expected.position.end);
         }
 
         if (['word', 'punctuation'].includes(tree.type)) {
@@ -36,7 +36,7 @@ function assertTreeMatches(
     }
 }
 
-function treeMatcher(tree: Node, expected: Node, options: { verifyPositions: boolean }): CustomMatcherResult {
+function treeMatcher(tree: AstNode, expected: AstNode, options: { verifyPositions: boolean }): CustomMatcherResult {
     try {
         assertTreeMatches(tree, expected, options);
     } catch (err) {
@@ -65,30 +65,32 @@ declare global {
         // eslint-disable-next-line no-unused-vars
         interface Matchers<R> {
             // eslint-disable-next-line no-unused-vars
-            toMatchTree: (expected: Node) => CustomMatcherResult;
+            toMatchTree: (expected: AstNode) => CustomMatcherResult;
             // eslint-disable-next-line no-unused-vars
-            toMatchTreeIgnoringPositions: (expected: Node) => CustomMatcherResult;
+            toMatchTreeIgnoringPositions: (expected: AstNode) => CustomMatcherResult;
         }
     }
 }
 
 expect.extend({
-    toMatchTree(tree: Node, expected: Node): CustomMatcherResult {
+    toMatchTree(tree: AstNode, expected: AstNode): CustomMatcherResult {
         return treeMatcher(tree, expected, { verifyPositions: true });
     },
 
-    toMatchTreeIgnoringPositions(tree: Node, expected: Node): CustomMatcherResult {
+    toMatchTreeIgnoringPositions(tree: AstNode, expected: AstNode): CustomMatcherResult {
         return treeMatcher(tree, expected, { verifyPositions: false });
     },
 });
 
-function node(type: string, range: string, children: Node[], text?: string): Node {
+function node(type: string, range: string, children: AstNode[], text?: string): AstNode {
     const { start, end } = parseRange(range);
 
     return {
         type,
-        start,
-        end,
+        position: {
+            start,
+            end,
+        },
         children,
         text,
     };
@@ -96,7 +98,7 @@ function node(type: string, range: string, children: Node[], text?: string): Nod
 
 const buildBuilder =
     (name: string) =>
-        (range: string, ...children: Node[]) =>
+        (range: string, ...children: AstNode[]) =>
             node(name, range, children);
 const paragraph = buildBuilder('paragraph');
 const sentence = buildBuilder('sentence');
@@ -107,7 +109,7 @@ const punctuation = (range: string, text?: string) => node('punctuation', range,
 
 describe('Validate SimpleText AST structure', () => {
     /* eslint-disable */
-    const cases: Array<[string, string, Node]> = [
+    const cases: Array<[string, string, AstNode]> = [
         [
             '2 sentences',
             'First. Second',
@@ -138,7 +140,7 @@ describe('Validate SimpleText AST structure', () => {
                     '1:1-1:7',
                     proposition(
                         '1:1-1:7',
-                        word('1:1-1:4', 'aaa'),
+                        word('1:1-1:3', 'aaa'),
                         word('1:5-1:7', 'bbb'),
                     ),
                 ),
@@ -154,7 +156,7 @@ describe('Validate SimpleText AST structure', () => {
 
 describe('Validate SimpleText AST structure with positions', () => {
     /* eslint-disable */
-    const cases: Array<[string, string, Node]> = [
+    const cases: Array<[string, string, AstNode]> = [
         [
             'word gap',
             'aaa bbb',
@@ -164,7 +166,7 @@ describe('Validate SimpleText AST structure with positions', () => {
                     '1:1-1:7',
                     proposition(
                         '1:1-1:7',
-                        word('1:1-1:4', 'aaa'),
+                        word('1:1-1:3', 'aaa'),
                         word('1:5-1:7', 'bbb'),
                     ),
                 ),

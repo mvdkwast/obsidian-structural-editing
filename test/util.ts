@@ -1,22 +1,22 @@
+import { Point } from '../src/Ast';
 import { Pos, Range } from '../src/Pos';
-import { Position } from '../src/SimpleText';
 import CustomMatcherResult = jest.CustomMatcherResult;
 
 const insert = (text: string, pos: number, insert: string) => text.slice(0, pos) + insert + text.slice(pos);
 
 export namespace TestUtil {
     /** Format a position as "1:4" */
-    export function formatPosition(position?: Position) {
+    export function formatPosition(position?: Point) {
         return position ? `${position.line}:${position.column}` : '';
     }
 
     /** Format a Range as "1:4-10:29" */
-    export function formatRange(range: { start?: Position; end?: Position }) {
+    export function formatRange(range: { start?: Point; end?: Point }) {
         return `${formatPosition(range.start)}-${formatPosition(range.end)}`;
     }
 
     /** Parse a string in the format "1:4-10:29" into a Range */
-    export function parseRange(range: string): { start?: Position; end?: Position } {
+    export function parseRange(range: string): { start?: Point; end?: Point } {
         if (!range) {
             return {
                 start: undefined,

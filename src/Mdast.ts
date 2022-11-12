@@ -1,4 +1,4 @@
-import { Content, Heading, Point, Root } from 'mdast-util-from-markdown/lib';
+import { Content, Heading, Root } from 'mdast-util-from-markdown/lib';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import { math } from 'micromark-extension-math';
 import { mathFromMarkdown } from 'mdast-util-math';
@@ -18,140 +18,10 @@ import { frontmatter } from 'micromark-extension-frontmatter';
 import { frontmatterFromMarkdown } from 'mdast-util-frontmatter';
 
 import { Pos, Range } from './Pos';
-
-export type MdastNode = {
-    position: {
-        start: Point;
-        end: Point;
-    };
-    type: string;
-    children?: MdastNode[];
-    parent?: MdastNode;
-};
+import { Ast, AstNode } from './Ast';
 
 export class Mdast {
-    static inNode(node: MdastNode, pos: Pos) {
-        if (!node.position) {
-            return false;
-        }
-
-        return pos.inRange(Pos.fromPoint(node.position.start), Pos.fromPoint(node.position.end));
-    }
-
-    static fillsNode(node: MdastNode, { start, end }: Range): boolean {
-        if (!node.position) {
-            return false;
-        }
-
-        return (
-            Pos.fromPoint(node.position.start).compareTo(start) === 0 &&
-            Pos.fromPoint(node.position.end).compareTo(end) === 0
-        );
-    }
-
-    static logPos(pos: { start: Point; end: Point } | undefined) {
-        if (pos) {
-            const start = pos.start;
-            const end = pos.end;
-            return `[${start.line}:${start.column}-${end.line}:${end.column}]`;
-        } else {
-            return '[]';
-        }
-    }
-
-    static logNode(node: MdastNode) {
-        return (
-            this.logPos(node.position) +
-            ': ' +
-            (node.children ? node.children.map((child) => this.logPos(child.position)) : [])
-        );
-    }
-
-    // adjust node boundaries so they are continuous and fill the parent
-    static adjustBoundaries(parent: MdastNode) {
-        const startPos = parent.position.start;
-        if (!parent.children) {
-            return;
-        }
-
-        console.log('before', this.logNode(parent));
-
-        const children = parent.children.filter((child) => !!child.position);
-
-        if (!children.length) {
-            return;
-        }
-
-        // children[0].position.start = parent.position.start;
-        // children[children.length - 1].position.end = parent.position.end;
-
-        // for (let i = 0; i < children.length - 1; i++) {
-        //     children[i].position.end = children[i + 1].position.start;
-        // }
-
-        console.log('after', this.logNode(parent));
-    }
-
-    static findNodeWithRange(root: MdastNode, { start, end }: Range): { node: MdastNode; ancestors: MdastNode[] } {
-        let currentParent: MdastNode = root;
-
-        const nodeStack: MdastNode[] = [];
-
-        while (true) {
-            // console.log(`trying node`, currentParent);
-            nodeStack.push(currentParent);
-
-            this.adjustBoundaries(currentParent);
-            console.log('looking    in', this.logNode(currentParent));
-
-            const child: MdastNode | undefined = currentParent.children?.find(
-                (node) => this.inNode(node, start) && this.inNode(node, end),
-            );
-
-            if (!child) {
-                // console.log(`no matching child`);
-                break;
-            }
-
-            if ('children' in child) {
-                // console.log(`child with children`);
-                currentParent = child;
-            } else {
-                // console.log(`child with no children`);
-                nodeStack.push(child);
-                break;
-            }
-        }
-
-        return {
-            node: { ...nodeStack[nodeStack.length - 1], parent: nodeStack[Math.max(0, nodeStack.length - 2)] },
-            ancestors: nodeStack,
-        };
-
-        // move up to the highest node that has the same range as the last node
-        // FIXME - why did we want to do this ?
-
-        // const lastNode = nodeStack[nodeStack.length - 1];
-        // let sameNodeIndex;
-        // for (sameNodeIndex = nodeStack.length - 2; sameNodeIndex >= 0; --sameNodeIndex) {
-        //     const parentNode = nodeStack[sameNodeIndex];
-        //     if (
-        //         Pos.fromPoint(parentNode.position!.start).equals(Pos.fromPoint(lastNode.position!.start)) &&
-        //         Pos.fromPoint(parentNode.position!.end).equals(Pos.fromPoint(lastNode.position!.end))
-        //     ) {
-        //         //
-        //     } else {
-        //         break;
-        //     }
-        // }
-
-        // return {
-        //     node: { ...nodeStack[sameNodeIndex + 1], parent: nodeStack[Math.max(0, sameNodeIndex)] },
-        //     ancestors: nodeStack.slice(0, Math.max(0, sameNodeIndex + 1)),
-        // };
-    }
-
-    static isInParagraph(ancestors: MdastNode[]): boolean {
+    static isInParagraph(ancestors: AstNode[]): boolean {
         for (let i = ancestors.length - 1; i >= 0; --i) {
             if (ancestors[i].type === 'paragraph') {
                 return true;
@@ -166,7 +36,7 @@ export class Mdast {
         return false;
     }
 
-    static findParentParagraph(ancestors: MdastNode[]): MdastNode | undefined {
+    static findParentParagraph(ancestors: AstNode[]): AstNode | undefined {
         for (let i = ancestors.length - 1; i >= 0; --i) {
             if (ancestors[i].type === 'paragraph') {
                 return ancestors[i];
@@ -206,8 +76,8 @@ interface SubSections extends Parent {
 class MarkdownAST {
     constructor(public readonly root: Root) {}
 
-    findNodeWithRange(range: Range): { node: MdastNode; ancestors: MdastNode[] } {
-        return Mdast.findNodeWithRange(this.root as MdastNode, range);
+    findNodeWithRange(range: Range): { node: AstNode; ancestors: AstNode[] } {
+        return Ast.findNodeWithRange(this.root as AstNode, range);
     }
 }
 

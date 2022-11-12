@@ -8,7 +8,7 @@ import renderSelection = TestUtil.renderSelection;
 describe('getSelection (meta)', () => {
     const cases = [
         // ['test'],
-        ['te|st', '1:3-'],
+        ['te|st', '1:3-1:3'],
         ['te|s|t', '1:3-1:4'],
         ['|test|', '1:1-1:5'],
         ['|test\ntest|', '1:1-2:5'],

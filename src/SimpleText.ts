@@ -1,6 +1,6 @@
 import { ANTLRInputStream, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
-import { match } from 'assert';
+import { AstNode } from './Ast';
 import { SimpleTextLexer } from './grammar/SimpleTextLexer';
 import {
     EndPunctuationContext,
@@ -14,39 +14,27 @@ import {
 } from './grammar/SimpleTextParser';
 import { SimpleTextVisitor } from './grammar/SimpleTextVisitor';
 
-export type Position = {
-    line: number;
-    column: number;
-};
-
-export type Node = {
-    type: string;
-    start?: Position;
-    end?: Position;
-    text?: string;
-    children?: Node[];
-};
-
-class BuildASTVisitor extends AbstractParseTreeVisitor<Node> implements SimpleTextVisitor<Node> {
+class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements SimpleTextVisitor<AstNode> {
     defaultResult() {
         return {
             type: 'default',
+            position: {},
         };
     }
 
-    visitParagraph(ctx: ParagraphContext): Node {
+    visitParagraph(ctx: ParagraphContext): AstNode {
         return this.processGroup(ctx, 'paragraph');
     }
 
-    visitSentence(ctx: SentenceContext): Node {
+    visitSentence(ctx: SentenceContext): AstNode {
         return this.processGroup(ctx, 'sentence');
     }
 
-    visitProposition(ctx: PropositionContext): Node {
+    visitProposition(ctx: PropositionContext): AstNode {
         return this.processGroup(ctx, 'proposition');
     }
 
-    visitExpression(ctx: ExpressionContext): Node {
+    visitExpression(ctx: ExpressionContext): AstNode {
         return this.processGroup(ctx, 'expression');
     }
 
@@ -55,59 +43,63 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<Node> implements SimpleTe
         return this.createNode(ctx, type, children ?? []);
     }
 
-    visitWord(ctx: WordContext): Node {
+    visitWord(ctx: WordContext): AstNode {
         return this.processTerminal(ctx, 'word');
     }
 
-    visitEndPunctuation(ctx: EndPunctuationContext): Node {
+    visitEndPunctuation(ctx: EndPunctuationContext): AstNode {
         return this.processTerminal(ctx, 'punctuation');
     }
 
-    visitMidPunctuation(ctx: MidPunctuationContext): Node {
+    visitMidPunctuation(ctx: MidPunctuationContext): AstNode {
         return this.processTerminal(ctx, 'mid-punctuation');
     }
 
-    processTerminal(ctx: ParserRuleContext, type: string): Node {
+    processTerminal(ctx: ParserRuleContext, type: string): AstNode {
         return {
             type: type,
-            start: {
-                line: ctx.start.line,
-                column: ctx.start.charPositionInLine + 1,
-            },
-            end: {
-                line: ctx.start.line,
-                column: ctx.start.charPositionInLine + ctx.text.length,
+            position: {
+                start: {
+                    line: ctx.start.line,
+                    column: ctx.start.charPositionInLine + 1,
+                },
+                end: {
+                    line: ctx.start.line,
+                    column: ctx.start.charPositionInLine + ctx.text.length,
+                },
             },
             text: ctx.text,
             children: [],
         };
     }
 
-    createNode(ctx: ParserRuleContext, type: string, children: Node[]) {
+    createNode(ctx: ParserRuleContext, type: string, children: AstNode[]): AstNode {
         const endToken = ctx.stop ?? ctx.start;
         return {
             type,
-            start: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine },
-            end: { line: endToken.line, column: endToken.charPositionInLine },
+            position: {
+                start: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine },
+                end: { line: endToken.line, column: endToken.charPositionInLine },
+            },
             text: ctx.text,
             children,
         };
     }
 }
 
-function fixupAst(node: Node) {
+function fixupAst(node: AstNode) {
     // FIXME - deuglify
 
     node.children?.forEach((child) => fixupAst(child));
 
     // Force parent end-position to match that of the last child
     const lastChild = node.children ? node.children[node.children.length - 1] : undefined;
-    node.end = lastChild?.end ?? node.end;
+    node.position.end = lastChild?.position.end ?? node.position.end;
 }
 
 export namespace SimpleText {
     /** Parse a Markdown text and return an AST */
-    export function parse(text: string): Node {
+    export function parse(text: string): AstNode {
         // Create the lexer and parser
         const inputStream = new ANTLRInputStream(text);
         const lexer = new SimpleTextLexer(inputStream);
