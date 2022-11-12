@@ -12,13 +12,9 @@ export class GrowCommand {
         let nodeWithSelection = result.node;
         console.log(result.ancestors.map((a) => a.type));
 
-        const parentParagraph = Mdast.findParentParagraph(result.ancestors);
+        const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
         if (parentParagraph && !Mdast.fillsNode(parentParagraph, selection)) {
-            const remappedSelection = this.selectInParagraph(markdown, parentParagraph, selection);
-            return {
-                start: remappedSelection.start,
-                end: remappedSelection.end,
-            };
+            return this.selectInParagraph(markdown, parentParagraph, selection);
         } else {
             // If node is an unfilled paragraph or paragraph content (text, emphasis, ...)
             if (Mdast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {

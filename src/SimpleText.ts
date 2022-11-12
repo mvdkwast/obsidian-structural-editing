@@ -1,5 +1,7 @@
-import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { ANTLRInputStream, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
+import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
+import { match } from 'assert';
+import { SimpleTextLexer } from './grammar/SimpleTextLexer';
 import {
     EndPunctuationContext,
     ExpressionContext,
@@ -10,7 +12,6 @@ import {
     SimpleTextParser,
     WordContext,
 } from './grammar/SimpleTextParser';
-import { SimpleTextLexer } from './grammar/SimpleTextLexer';
 import { SimpleTextVisitor } from './grammar/SimpleTextVisitor';
 
 export type Position = {
@@ -96,7 +97,10 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<Node> implements SimpleTe
 
 function fixupAst(node: Node) {
     // FIXME - deuglify
+
     node.children?.forEach((child) => fixupAst(child));
+
+    // Force parent end-position to match that of the last child
     const lastChild = node.children ? node.children[node.children.length - 1] : undefined;
     node.end = lastChild?.end ?? node.end;
 }

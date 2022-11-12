@@ -2,12 +2,17 @@ import { GrowCommand } from '../src/GrowCommand';
 import { TestUtil } from './util';
 import getSelection = TestUtil.getSelection;
 import renderSelection = TestUtil.renderSelection;
+import stripSelection = TestUtil.stripSelection;
 
 describe('Grow command', () => {
     const cases = [
+        // paragraph level
         ['wo|rd', '|word|'],
-        ['# |title\nparagraph', '# |title|\nparagraph'],
         ['two| words', '|two| words'],
+
+        // structure level
+        ['# |title\nparagraph', '# |title|\nparagraph'],
+        ['para-1\n|\npara-2', '|para-1|\n\npara-2'],
     ];
 
     test.each(cases)('Grow: %p', (before, after) => {
@@ -16,12 +21,13 @@ describe('Grow command', () => {
             throw Error('test must provide a selection in source text');
         }
 
-        const newSelection = GrowCommand.growSelection(before, selection);
+        const markdown = stripSelection(before);
+        const newSelection = GrowCommand.growSelection(markdown, selection);
         if (!newSelection.start || !newSelection.end) {
             throw Error("Grow command didn't return a valid selection");
         }
 
-        const newText = renderSelection(before, newSelection);
+        const newText = renderSelection(markdown, newSelection);
 
         expect(newText).toBe(after);
     });

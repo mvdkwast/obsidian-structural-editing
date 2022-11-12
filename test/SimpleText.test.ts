@@ -1,9 +1,8 @@
-import { Range } from '../src/Pos';
 import type { Node } from '../src/SimpleText';
 import { SimpleText } from '../src/SimpleText';
 import { TestUtil } from './util';
-import parseRange = TestUtil.parseRange;
 import CustomMatcherResult = jest.CustomMatcherResult;
+import parseRange = TestUtil.parseRange;
 
 function assertTreeMatches(
     tree: Node,
@@ -28,8 +27,11 @@ function assertTreeMatches(
             assertTreeMatches(tree.children![i], expected.children![i], options);
         }
     } catch (err) {
-        // @ts-ignore
-        err.nodes = [tree, expected];
+        // @ts-expect-error
+        if (!('nodes' in err)) {
+            // @ts-expect-error
+            err.nodes = [tree, expected];
+        }
         throw err;
     }
 }
@@ -94,8 +96,8 @@ function node(type: string, range: string, children: Node[], text?: string): Nod
 
 const buildBuilder =
     (name: string) =>
-    (range: string, ...children: Node[]) =>
-        node(name, range, children);
+        (range: string, ...children: Node[]) =>
+            node(name, range, children);
 const paragraph = buildBuilder('paragraph');
 const sentence = buildBuilder('sentence');
 const proposition = buildBuilder('proposition');
@@ -103,29 +105,97 @@ const proposition = buildBuilder('proposition');
 const word = (range: string, text?: string) => node('word', range, [], text);
 const punctuation = (range: string, text?: string) => node('punctuation', range, [], text);
 
-describe('SimpleText', () => {
+describe('Validate SimpleText AST structure', () => {
     /* eslint-disable */
     const cases: Array<[string, string, Node]> = [
         [
-            'simple validation',
+            '2 sentences',
             'First. Second',
-            paragraph('',
-                sentence('',
-                    proposition('',
-                        word('', 'First')
+            paragraph(
+                '',
+                sentence(
+                    '',
+                    proposition(
+                        '',
+                        word('', 'First'),
                     ),
-                    punctuation('', '.')
+                    punctuation('', '.'),
                 ),
-                sentence('',
-                    proposition('',
-                        word('', 'Second'))
-                )
+                sentence(
+                    '',
+                    proposition(
+                        '',
+                        word('', 'Second')),
+                ),
             ),
-        ]
+        ],
+        [
+            'word gap',
+            'aaa bbb',
+            paragraph(
+                '1:1-1:7',
+                sentence(
+                    '1:1-1:7',
+                    proposition(
+                        '1:1-1:7',
+                        word('1:1-1:4', 'aaa'),
+                        word('1:5-1:7', 'bbb'),
+                    ),
+                ),
+            ),
+        ],
     ];
 
     test.each(cases)('SimpleTestAST: %p', (name, markdown, expected) => {
         const tree = SimpleText.parse(markdown);
         expect(tree).toMatchTreeIgnoringPositions(expected);
+    });
+});
+
+describe('Validate SimpleText AST structure with positions', () => {
+    /* eslint-disable */
+    const cases: Array<[string, string, Node]> = [
+        [
+            'word gap',
+            'aaa bbb',
+            paragraph(
+                '1:1-1:7',
+                sentence(
+                    '1:1-1:7',
+                    proposition(
+                        '1:1-1:7',
+                        word('1:1-1:4', 'aaa'),
+                        word('1:5-1:7', 'bbb'),
+                    ),
+                ),
+            ),
+        ],
+        [
+            'line gap',
+            'aaa.\nbbb',
+            paragraph(
+                '1:1-2:3',
+                sentence(
+                    `1:1-1:4`,
+                    proposition(
+                        `1:1-1:3`,
+                        word(`1:1-1:3`, 'aaa'),
+                    ),
+                    punctuation('1:4-1:4', '.')
+                ),
+                sentence(
+                    '2:1-2:3',
+                    proposition(
+                        '2:1-2:3',
+                        word('2:1-2:3', 'bbb'),
+                    ),
+                ),
+            ),
+        ],
+    ];
+
+    test.each(cases)('SimpleTestAST: %p', (name, markdown, expected) => {
+        const tree = SimpleText.parse(markdown);
+        expect(tree).toMatchTree(expected);
     });
 });

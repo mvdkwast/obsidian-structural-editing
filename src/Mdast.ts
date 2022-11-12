@@ -123,25 +123,32 @@ export class Mdast {
             }
         }
 
-        // move up to the highest node that has the same range as the last node
-        const lastNode = nodeStack[nodeStack.length - 1];
-        let sameNodeIndex;
-        for (sameNodeIndex = nodeStack.length - 2; sameNodeIndex >= 0; --sameNodeIndex) {
-            const parentNode = nodeStack[sameNodeIndex];
-            if (
-                Pos.fromPoint(parentNode.position!.start).equals(Pos.fromPoint(lastNode.position!.start)) &&
-                Pos.fromPoint(parentNode.position!.end).equals(Pos.fromPoint(lastNode.position!.end))
-            ) {
-                //
-            } else {
-                break;
-            }
-        }
-
         return {
-            node: { ...nodeStack[sameNodeIndex + 1], parent: nodeStack[Math.max(0, sameNodeIndex)] },
-            ancestors: nodeStack.slice(0, Math.max(0, sameNodeIndex + 1)),
+            node: { ...nodeStack[nodeStack.length - 1], parent: nodeStack[Math.max(0, nodeStack.length - 2)] },
+            ancestors: nodeStack,
         };
+
+        // move up to the highest node that has the same range as the last node
+        // FIXME - why did we want to do this ?
+
+        // const lastNode = nodeStack[nodeStack.length - 1];
+        // let sameNodeIndex;
+        // for (sameNodeIndex = nodeStack.length - 2; sameNodeIndex >= 0; --sameNodeIndex) {
+        //     const parentNode = nodeStack[sameNodeIndex];
+        //     if (
+        //         Pos.fromPoint(parentNode.position!.start).equals(Pos.fromPoint(lastNode.position!.start)) &&
+        //         Pos.fromPoint(parentNode.position!.end).equals(Pos.fromPoint(lastNode.position!.end))
+        //     ) {
+        //         //
+        //     } else {
+        //         break;
+        //     }
+        // }
+
+        // return {
+        //     node: { ...nodeStack[sameNodeIndex + 1], parent: nodeStack[Math.max(0, sameNodeIndex)] },
+        //     ancestors: nodeStack.slice(0, Math.max(0, sameNodeIndex + 1)),
+        // };
     }
 
     static isInParagraph(ancestors: MdastNode[]): boolean {

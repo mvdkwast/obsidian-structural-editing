@@ -90,13 +90,17 @@ export namespace TestUtil {
         };
     }
 
-    export function renderSelection(text: string, selection: Range, marker: string = '|') {
+    export function stripSelection(text: string, marker: string = '|'): string {
         // @ts-ignore replaceAll is es2021 and supported
-        const lines = text.replaceAll(marker, '').split(/\n/);
+        return text.replaceAll(marker, '');
+    }
 
+    export function renderSelection(text: string, selection: Range, marker: string = '|'): string {
         if (!selection.start) {
-            return lines.join('\n');
+            return text;
         }
+
+        const lines = text.split('\n');
 
         const startLineIndex = selection.start.line - 1;
         lines[startLineIndex] = insert(lines[startLineIndex], selection.start.column - 1, marker);

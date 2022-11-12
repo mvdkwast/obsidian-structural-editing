@@ -25,7 +25,7 @@ export class Antlr {
 
     static findNodeWithRange(
         root: SimpleTextNode,
-        { start, end }: Range,
+        selection: Range,
     ): { node: SimpleTextNode; ancestors: SimpleTextNode[] } {
         let currentParent: SimpleTextNode = root;
 
@@ -38,16 +38,33 @@ export class Antlr {
 
             // FIXME: we also need to check whether we are in a "gap", ie. between two  nodes. In that case consider
             //        we are in the first node. Do the same for the markdown version. This avoids selecting "up" too fast
-            const child: SimpleTextNode | undefined = currentParent.children?.find(
-                (node) => this.inNode(node, start) && this.inNode(node, end),
-            );
+            // const child: SimpleTextNode | undefined = currentParent.children?.find(
+            //     (node) => this.inNode(node, selection.start) && this.inNode(node, selection.end),
+            // );
+
+            let child: SimpleTextNode | undefined = undefined;
+            const children: SimpleTextNode[] =
+                currentParent.children?.filter((child) => !!child.start && !!child.end) ?? [];
+
+            for (let i = 0; i < children.length ?? 0; ++i) {
+                const node = children[i];
+                const end = i >= children.length - 1 ? node.end : children[i + 1].start;
+
+                if (
+                    selection.start.inRange(Pos.fromPoint(node.start as Point), Pos.fromPoint(end as Point)) &&
+                    selection.end.inRange(Pos.fromPoint(node.start as Point), Pos.fromPoint(end as Point))
+                ) {
+                    child = node;
+                    break;
+                }
+            }
 
             if (!child) {
                 console.log('no matching child');
                 break;
             }
 
-            if ('children' in child) {
+            if (child.children && child.children.length > 0) {
                 console.log('child with children');
                 currentParent = child;
             } else {
