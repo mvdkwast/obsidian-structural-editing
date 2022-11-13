@@ -1,14 +1,14 @@
 import { Ast, AstNode, AstRange } from './Ast';
+import { AstPosMath } from './AstPos';
 import { MarkdownASTBuilder, Mdast } from './Mdast';
-import { Pos, Range } from './Pos';
 import { SimpleText } from './SimpleText';
 
 export class GrowCommand {
-    static growSelection(markdown: string, selection: Range): Range {
+    static growSelection(markdown: string, selection: AstRange): AstRange {
         const tree = MarkdownASTBuilder.parse(markdown);
-        console.log('tree', tree.root);
+        console.log('tree', tree);
 
-        const result = tree.findNodeWithRange(selection);
+        const result = Ast.findNodeWithRange(tree, selection);
         let nodeWithSelection = result.node;
         console.log(result.ancestors.map((a) => a.type));
 
@@ -20,23 +20,19 @@ export class GrowCommand {
             // Node is something a more structural part of the Markdown document
             if (Ast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {
                 console.log('node is filled, selecting parent');
-                nodeWithSelection = nodeWithSelection.parent;
+                nodeWithSelection = Mdast.findAncestorWithLargerRange(nodeWithSelection, result.ancestors);
             }
 
             console.log(`filling node of type ${nodeWithSelection.type}`);
 
             return {
-                start: Pos.fromPoint(nodeWithSelection.position.start!),
-                end: Pos.fromPoint(nodeWithSelection.position.end!),
+                start: nodeWithSelection.position.start!,
+                end: nodeWithSelection.position.end!,
             };
         }
     }
 
-    private static selectInParagraph(
-        markdown: string,
-        parentParagraph: AstNode,
-        range: { start: Pos; end: Pos },
-    ): Range {
+    private static selectInParagraph(markdown: string, parentParagraph: AstNode, range: AstRange): AstRange {
         // in document coordinates
         const paragraphRange: AstRange = {
             start: parentParagraph.position!.start!,
@@ -55,14 +51,9 @@ export class GrowCommand {
 
         // translate selection into paragraph coordinates (make selection relative to text)
         const mappedSelection = {
-            start: range.start.minus(Pos.fromPoint(paragraphRange.start!)),
-            end: range.end.minus(Pos.fromPoint(paragraphRange.start!)),
+            start: AstPosMath.toOneBased(AstPosMath.minus(range.start, paragraphRange.start)),
+            end: AstPosMath.toOneBased(AstPosMath.minus(range.end, paragraphRange.start)),
         };
-        mappedSelection.start.line++;
-        mappedSelection.end.line++;
-        mappedSelection.start.column++;
-        mappedSelection.end.column++;
-
         console.log('mapped selection:', mappedSelection);
 
         // find node in range
@@ -73,9 +64,9 @@ export class GrowCommand {
         // if we don't fill it grow to fill it
         // else select parent
         let textNode: AstNode = nodeWithSelection;
-        if (Ast.fillsNode(nodeWithSelection, range)) {
+        if (Ast.fillsNode(nodeWithSelection, mappedSelection)) {
             console.log('selection already fills the node, growing !');
-            textNode = ancestors[ancestors.length - 1];
+            textNode = Mdast.findAncestorWithLargerRange(nodeWithSelection, ancestors);
         }
 
         console.log('selecting', textNode);
@@ -84,15 +75,15 @@ export class GrowCommand {
         console.log('new selection start', textNode.position.start);
         console.log('new selection end', textNode.position.end);
 
-        const remappedSelection = {
-            start: new Pos(
-                paragraphRange.start.line - 1 + textNode.position.start!.line,
-                paragraphRange.start.column - 1 + textNode.position.start!.column,
-            ),
-            end: new Pos(
-                paragraphRange.start.line - 1 + textNode.position.end!.line,
-                paragraphRange.start.column - 1 + textNode.position.end!.column + 1,
-            ),
+        const remappedSelection: AstRange = {
+            start: {
+                line: paragraphRange.start.line - 1 + textNode.position.start!.line,
+                column: paragraphRange.start.column - 1 + textNode.position.start!.column,
+            },
+            end: {
+                line: paragraphRange.start.line - 1 + textNode.position.end!.line,
+                column: paragraphRange.start.column - 1 + textNode.position.end!.column + 1,
+            },
         };
 
         console.log('mapped selection start', remappedSelection.start);

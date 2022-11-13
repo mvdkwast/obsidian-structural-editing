@@ -1,7 +1,7 @@
 import { Editor, EditorPosition, MarkdownView, Plugin } from 'obsidian';
-import { Point } from './Ast';
+import { AstPos } from './Ast';
+import { AstPosMath } from './AstPos';
 import { GrowCommand } from './GrowCommand';
-import { Pos } from './Pos';
 
 type StructuralEditSettings = {
     /** If set svg are converted to bitmap */
@@ -25,7 +25,10 @@ export default class StructuralEditPlugin extends Plugin {
             name: 'Grow selection',
             editorCallback: async (editor: Editor, view: MarkdownView) => {
                 const { head, anchor } = editor.listSelections()[0];
-                const selection = Pos.order(Pos.fromEditorPosition(head), Pos.fromEditorPosition(anchor));
+                const selection = AstPosMath.order(
+                    AstPosMath.fromEditorPosition(head),
+                    AstPosMath.fromEditorPosition(anchor),
+                );
                 console.log('selection start', selection.start);
                 console.log('selection end', selection.end);
 
@@ -35,7 +38,7 @@ export default class StructuralEditPlugin extends Plugin {
         });
     }
 
-    toEditorPosition(pos: Point): EditorPosition {
+    toEditorPosition(pos: AstPos): EditorPosition {
         return {
             line: pos.line - 1,
             ch: pos.column - 1,

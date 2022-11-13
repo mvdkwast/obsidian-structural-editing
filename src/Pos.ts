@@ -38,7 +38,7 @@ export class Pos {
         return new Pos(pos.line, pos.column);
     }
 
-    compareTo(other: Pos): number {
+    compareTo(other: Point): number {
         if (this.line < other.line) {
             return -1;
         }
@@ -58,8 +58,12 @@ export class Pos {
         return this.compareTo(other) === 0;
     }
 
-    inRange(start: Pos, end: Pos): boolean {
+    inInclusiveRange(start: Pos, end: Pos): boolean {
         return this.compareTo(start) >= 0 && this.compareTo(end) <= 0;
+    }
+
+    inRangeExcludingEnd(start: Pos, end: Pos): boolean {
+        return this.compareTo(start) >= 0 && this.compareTo(end) < 0;
     }
 
     static order(a: Pos, b: Pos): Range {

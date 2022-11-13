@@ -18126,47 +18126,55 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 
-// src/Pos.ts
-var Pos = class {
-  constructor(line, column) {
-    this.line = line;
-    this.column = column;
-  }
+// src/AstPos.ts
+var AstPosMath = class {
   static fromEditorPosition(pos) {
-    return new Pos(pos.line + 1, pos.ch + 1);
-  }
-  toEditorPosition() {
     return {
-      line: this.line - 1,
-      ch: this.column - 1
+      line: pos.line + 1,
+      column: pos.ch + 1
     };
   }
-  static fromPoint(pos) {
-    return new Pos(pos.line, pos.column);
+  static toEditorPosition(pos) {
+    return {
+      line: pos.line - 1,
+      ch: pos.column - 1
+    };
   }
-  compareTo(other) {
-    if (this.line < other.line) {
+  static toOneBased(pos) {
+    return {
+      line: pos.line + 1,
+      column: pos.column + 1
+    };
+  }
+  static compareTo(pos, other) {
+    if (pos.line < other.line) {
       return -1;
     }
-    if (this.line > other.line) {
+    if (pos.line > other.line) {
       return 1;
     }
-    if (this.column < other.column) {
+    if (pos.column < other.column) {
       return -1;
     }
-    if (this.column > other.column) {
+    if (pos.column > other.column) {
       return 1;
     }
     return 0;
   }
-  equals(other) {
-    return this.compareTo(other) === 0;
+  static equals(pos, other) {
+    return this.compareTo(pos, other) === 0;
   }
-  inRange(start, end) {
-    return this.compareTo(start) >= 0 && this.compareTo(end) <= 0;
+  static inInclusiveRange(pos, range) {
+    return this.compareTo(pos, range.start) >= 0 && this.compareTo(pos, range.end) <= 0;
+  }
+  static inRangeExcludingEnd(pos, range) {
+    return this.compareTo(pos, range.start) >= 0 && this.compareTo(pos, range.end) < 0;
+  }
+  static covers(sourceRange, targetRange) {
+    return this.compareTo(sourceRange.start, targetRange.start) <= 0 && this.compareTo(sourceRange.end, targetRange.end) >= 0;
   }
   static order(a, b) {
-    if (a.compareTo(b) <= 0) {
+    if (this.compareTo(a, b) <= 0) {
       return {
         start: a,
         end: b
@@ -18178,11 +18186,17 @@ var Pos = class {
       };
     }
   }
-  minus(other) {
-    return new Pos(this.line - other.line, this.column - other.column);
+  static minus(pos, other) {
+    return {
+      line: pos.line - other.line,
+      column: pos.column - other.column
+    };
   }
-  plus(other) {
-    return new Pos(this.line + other.line, this.column - other.column);
+  static plus(pos, other) {
+    return {
+      line: pos.line + other.line,
+      column: pos.column - other.column
+    };
   }
 };
 
@@ -18194,15 +18208,15 @@ var Ast;
     if (((_a = node.position.start) == null ? void 0 : _a.line) === void 0 || ((_b = node.position.end) == null ? void 0 : _b.line) === void 0) {
       return false;
     }
-    return pos.inRange(Pos.fromPoint(node.position.start), Pos.fromPoint(node.position.end));
+    return AstPosMath.inInclusiveRange(pos, { start: node.position.start, end: node.position.end });
   }
   Ast2.inNode = inNode;
-  function fillsNode(node, { start, end }) {
+  function fillsNode(node, selection) {
     var _a, _b;
     if (((_a = node.position.start) == null ? void 0 : _a.line) === void 0 || ((_b = node.position.end) == null ? void 0 : _b.line) === void 0) {
       return false;
     }
-    return Pos.fromPoint(node.position.start).compareTo(start) === 0 && Pos.fromPoint(node.position.end).compareTo(end) === 0;
+    return AstPosMath.covers(selection, { start: node.position.start, end: node.position.end });
   }
   Ast2.fillsNode = fillsNode;
   function findNodeWithRange(root, selection) {
@@ -18217,7 +18231,12 @@ var Ast;
       for (let i = 0; i < children.length; ++i) {
         const node = children[i];
         const end = i >= children.length - 1 ? node.position.end : children[i + 1].position.start;
-        if (selection.start.inRange(Pos.fromPoint(node.position.start), Pos.fromPoint(end)) && selection.end.inRange(Pos.fromPoint(node.position.start), Pos.fromPoint(end))) {
+        const startInToken = AstPosMath.inInclusiveRange(selection.start, {
+          start: node.position.start,
+          end
+        });
+        const endInToken = i >= children.length - 1 ? AstPosMath.inInclusiveRange(selection.end, { start: node.position.start, end }) : AstPosMath.inRangeExcludingEnd(selection.end, { start: node.position.start, end });
+        if (startInToken && endInToken) {
           child = node;
           break;
         }
@@ -22588,260 +22607,470 @@ function defaultOnError(left, right) {
   }
 }
 
-// node_modules/micromark-extension-math/lib/math-flow.js
-var mathFlow = {
-  tokenize: tokenizeMathFenced,
-  concrete: true
-};
-var nonLazyLine = {
-  tokenize: tokenizeNonLazyLine,
-  partial: true
-};
-function tokenizeMathFenced(effects, ok2, nok) {
-  const self = this;
-  const tail = self.events[self.events.length - 1];
-  const initialSize = tail && tail[1].type === "linePrefix" ? tail[2].sliceSerialize(tail[1], true).length : 0;
-  let sizeOpen = 0;
-  return start;
-  function start(code2) {
-    effects.enter("mathFlow");
-    effects.enter("mathFlowFence");
-    effects.enter("mathFlowFenceSequence");
-    return sequenceOpen(code2);
-  }
-  function sequenceOpen(code2) {
-    if (code2 === 36) {
-      effects.consume(code2);
-      sizeOpen++;
-      return sequenceOpen;
-    }
-    effects.exit("mathFlowFenceSequence");
-    return sizeOpen < 2 ? nok(code2) : factorySpace(effects, metaOpen, "whitespace")(code2);
-  }
-  function metaOpen(code2) {
-    if (code2 === null || markdownLineEnding(code2)) {
-      return openAfter(code2);
-    }
-    effects.enter("mathFlowFenceMeta");
-    effects.enter("chunkString", {
-      contentType: "string"
-    });
-    return meta(code2);
-  }
-  function meta(code2) {
-    if (code2 === null || markdownLineEnding(code2)) {
-      effects.exit("chunkString");
-      effects.exit("mathFlowFenceMeta");
-      return openAfter(code2);
-    }
-    if (code2 === 36)
-      return nok(code2);
-    effects.consume(code2);
-    return meta;
-  }
-  function openAfter(code2) {
-    effects.exit("mathFlowFence");
-    return self.interrupt ? ok2(code2) : contentStart(code2);
-  }
-  function contentStart(code2) {
-    if (code2 === null) {
-      return after(code2);
-    }
-    if (markdownLineEnding(code2)) {
-      return effects.attempt(nonLazyLine, effects.attempt({
-        tokenize: tokenizeClosingFence,
-        partial: true
-      }, after, initialSize ? factorySpace(effects, contentStart, "linePrefix", initialSize + 1) : contentStart), after)(code2);
-    }
-    effects.enter("mathFlowValue");
-    return contentContinue(code2);
-  }
-  function contentContinue(code2) {
-    if (code2 === null || markdownLineEnding(code2)) {
-      effects.exit("mathFlowValue");
-      return contentStart(code2);
-    }
-    effects.consume(code2);
-    return contentContinue;
-  }
-  function after(code2) {
-    effects.exit("mathFlow");
-    return ok2(code2);
-  }
-  function tokenizeClosingFence(effects2, ok3, nok2) {
-    let size = 0;
-    return factorySpace(effects2, closingPrefixAfter, "linePrefix", 4);
-    function closingPrefixAfter(code2) {
-      effects2.enter("mathFlowFence");
-      effects2.enter("mathFlowFenceSequence");
-      return closingSequence(code2);
-    }
-    function closingSequence(code2) {
-      if (code2 === 36) {
-        effects2.consume(code2);
-        size++;
-        return closingSequence;
-      }
-      if (size < sizeOpen)
-        return nok2(code2);
-      effects2.exit("mathFlowFenceSequence");
-      return factorySpace(effects2, closingSequenceEnd, "whitespace")(code2);
-    }
-    function closingSequenceEnd(code2) {
-      if (code2 === null || markdownLineEnding(code2)) {
-        effects2.exit("mathFlowFence");
-        return ok3(code2);
-      }
-      return nok2(code2);
-    }
-  }
-}
-function tokenizeNonLazyLine(effects, ok2, nok) {
-  const self = this;
-  return start;
-  function start(code2) {
-    effects.enter("lineEnding");
-    effects.consume(code2);
-    effects.exit("lineEnding");
-    return lineStart;
-  }
-  function lineStart(code2) {
-    return self.parser.lazy[self.now().line] ? nok(code2) : ok2(code2);
+// node_modules/fault/index.js
+var import_format = __toESM(require_format(), 1);
+var fault = Object.assign(create(Error), {
+  eval: create(EvalError),
+  range: create(RangeError),
+  reference: create(ReferenceError),
+  syntax: create(SyntaxError),
+  type: create(TypeError),
+  uri: create(URIError)
+});
+function create(Constructor) {
+  FormattedError.displayName = Constructor.displayName || Constructor.name;
+  return FormattedError;
+  function FormattedError(format, ...values) {
+    const reason = format ? (0, import_format.default)(format, ...values) : format;
+    return new Constructor(reason);
   }
 }
 
-// node_modules/micromark-extension-math/lib/math-text.js
-function mathText(options = {}) {
-  let single = options.singleDollarTextMath;
-  if (single === null || single === void 0) {
-    single = true;
+// node_modules/micromark-extension-frontmatter/matters.js
+var own2 = {}.hasOwnProperty;
+var markers = {
+  yaml: "-",
+  toml: "+"
+};
+function matters(options = "yaml") {
+  const results = [];
+  let index2 = -1;
+  if (!Array.isArray(options)) {
+    options = [options];
   }
-  return {
-    tokenize: tokenizeMathText,
-    resolve: resolveMathText,
-    previous: previous2
-  };
-  function tokenizeMathText(effects, ok2, nok) {
-    const self = this;
-    let sizeOpen = 0;
-    let size;
-    let token;
-    return start;
-    function start(code2) {
-      effects.enter("mathText");
-      effects.enter("mathTextSequence");
-      return openingSequence(code2);
+  while (++index2 < options.length) {
+    results[index2] = matter(options[index2]);
+  }
+  return results;
+}
+function matter(option) {
+  let result = option;
+  if (typeof result === "string") {
+    if (!own2.call(markers, result)) {
+      throw fault("Missing matter definition for `%s`", result);
     }
-    function openingSequence(code2) {
-      if (code2 === 36) {
-        effects.consume(code2);
-        sizeOpen++;
-        return openingSequence;
-      }
-      if (sizeOpen < 2 && !single)
-        return nok(code2);
-      effects.exit("mathTextSequence");
-      return gap(code2);
-    }
-    function gap(code2) {
-      if (code2 === null) {
-        return nok(code2);
-      }
-      if (code2 === 36) {
-        token = effects.enter("mathTextSequence");
-        size = 0;
-        return closingSequence(code2);
-      }
-      if (code2 === 32) {
-        effects.enter("space");
-        effects.consume(code2);
-        effects.exit("space");
-        return gap;
-      }
-      if (markdownLineEnding(code2)) {
-        effects.enter("lineEnding");
-        effects.consume(code2);
-        effects.exit("lineEnding");
-        return gap;
-      }
-      effects.enter("mathTextData");
-      return data(code2);
-    }
-    function data(code2) {
-      if (code2 === null || code2 === 32 || code2 === 36 || markdownLineEnding(code2)) {
-        effects.exit("mathTextData");
-        return gap(code2);
-      }
-      effects.consume(code2);
-      return data;
-    }
-    function closingSequence(code2) {
-      if (code2 === 36) {
-        effects.consume(code2);
-        size++;
-        return closingSequence;
-      }
-      if (size === sizeOpen) {
-        effects.exit("mathTextSequence");
-        effects.exit("mathText");
-        return ok2(code2);
-      }
-      token.type = "mathTextData";
-      return data(code2);
-    }
+    result = {
+      type: result,
+      marker: markers[result]
+    };
+  } else if (typeof result !== "object") {
+    throw fault("Expected matter to be an object, not `%j`", result);
+  }
+  if (!own2.call(result, "type")) {
+    throw fault("Missing `type` in matter `%j`", result);
+  }
+  if (!own2.call(result, "fence") && !own2.call(result, "marker")) {
+    throw fault("Missing `marker` or `fence` in matter `%j`", result);
+  }
+  return result;
+}
+
+// node_modules/mdast-util-frontmatter/index.js
+function frontmatterFromMarkdown(options) {
+  const settings = matters(options);
+  const enter = {};
+  const exit3 = {};
+  let index2 = -1;
+  while (++index2 < settings.length) {
+    const matter2 = settings[index2];
+    enter[matter2.type] = opener(matter2);
+    exit3[matter2.type] = close;
+    exit3[matter2.type + "Value"] = value;
+  }
+  return { enter, exit: exit3 };
+}
+function opener(matter2) {
+  return open;
+  function open(token) {
+    this.enter({ type: matter2.type, value: "" }, token);
+    this.buffer();
   }
 }
-function resolveMathText(events) {
-  let tailExitIndex = events.length - 4;
-  let headEnterIndex = 3;
-  let index2;
-  let enter;
-  if ((events[headEnterIndex][1].type === "lineEnding" || events[headEnterIndex][1].type === "space") && (events[tailExitIndex][1].type === "lineEnding" || events[tailExitIndex][1].type === "space")) {
-    index2 = headEnterIndex;
-    while (++index2 < tailExitIndex) {
-      if (events[index2][1].type === "mathTextData") {
-        events[tailExitIndex][1].type = "mathTextPadding";
-        events[headEnterIndex][1].type = "mathTextPadding";
-        headEnterIndex += 2;
-        tailExitIndex -= 2;
+function close(token) {
+  const data = this.resume();
+  this.exit(token).value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, "");
+}
+function value(token) {
+  this.config.enter.data.call(this, token);
+  this.config.exit.data.call(this, token);
+}
+
+// node_modules/ccount/index.js
+function ccount(value2, character) {
+  const source = String(value2);
+  if (typeof character !== "string") {
+    throw new TypeError("Expected character");
+  }
+  let count = 0;
+  let index2 = source.indexOf(character);
+  while (index2 !== -1) {
+    count++;
+    index2 = source.indexOf(character, index2 + character.length);
+  }
+  return count;
+}
+
+// node_modules/mdast-util-find-and-replace/node_modules/escape-string-regexp/index.js
+function escapeStringRegexp(string3) {
+  if (typeof string3 !== "string") {
+    throw new TypeError("Expected a string");
+  }
+  return string3.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&").replace(/-/g, "\\x2d");
+}
+
+// node_modules/unist-util-is/index.js
+var convert = function(test) {
+  if (test === void 0 || test === null) {
+    return ok;
+  }
+  if (typeof test === "string") {
+    return typeFactory(test);
+  }
+  if (typeof test === "object") {
+    return Array.isArray(test) ? anyFactory(test) : propsFactory(test);
+  }
+  if (typeof test === "function") {
+    return castFactory(test);
+  }
+  throw new Error("Expected function, string, or object as test");
+};
+function anyFactory(tests) {
+  const checks = [];
+  let index2 = -1;
+  while (++index2 < tests.length) {
+    checks[index2] = convert(tests[index2]);
+  }
+  return castFactory(any);
+  function any(...parameters) {
+    let index3 = -1;
+    while (++index3 < checks.length) {
+      if (checks[index3].call(this, ...parameters))
+        return true;
+    }
+    return false;
+  }
+}
+function propsFactory(check) {
+  return castFactory(all2);
+  function all2(node) {
+    let key;
+    for (key in check) {
+      if (node[key] !== check[key])
+        return false;
+    }
+    return true;
+  }
+}
+function typeFactory(check) {
+  return castFactory(type);
+  function type(node) {
+    return node && node.type === check;
+  }
+}
+function castFactory(check) {
+  return assertion;
+  function assertion(...parameters) {
+    return Boolean(check.call(this, ...parameters));
+  }
+}
+function ok() {
+  return true;
+}
+
+// node_modules/unist-util-visit-parents/color.browser.js
+function color(d) {
+  return d;
+}
+
+// node_modules/unist-util-visit-parents/index.js
+var CONTINUE = true;
+var SKIP = "skip";
+var EXIT = false;
+var visitParents = function(tree, test, visitor, reverse) {
+  if (typeof test === "function" && typeof visitor !== "function") {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+  const is = convert(test);
+  const step = reverse ? -1 : 1;
+  factory(tree, null, [])();
+  function factory(node, index2, parents) {
+    const value2 = typeof node === "object" && node !== null ? node : {};
+    let name;
+    if (typeof value2.type === "string") {
+      name = typeof value2.tagName === "string" ? value2.tagName : typeof value2.name === "string" ? value2.name : void 0;
+      Object.defineProperty(visit, "name", {
+        value: "node (" + color(value2.type + (name ? "<" + name + ">" : "")) + ")"
+      });
+    }
+    return visit;
+    function visit() {
+      let result = [];
+      let subresult;
+      let offset;
+      let grandparents;
+      if (!test || is(node, index2, parents[parents.length - 1] || null)) {
+        result = toResult(visitor(node, parents));
+        if (result[0] === EXIT) {
+          return result;
+        }
+      }
+      if (node.children && result[0] !== SKIP) {
+        offset = (reverse ? node.children.length : -1) + step;
+        grandparents = parents.concat(node);
+        while (offset > -1 && offset < node.children.length) {
+          subresult = factory(node.children[offset], offset, grandparents)();
+          if (subresult[0] === EXIT) {
+            return subresult;
+          }
+          offset = typeof subresult[1] === "number" ? subresult[1] : offset + step;
+        }
+      }
+      return result;
+    }
+  }
+};
+function toResult(value2) {
+  if (Array.isArray(value2)) {
+    return value2;
+  }
+  if (typeof value2 === "number") {
+    return [CONTINUE, value2];
+  }
+  return [value2];
+}
+
+// node_modules/mdast-util-find-and-replace/lib/index.js
+var own3 = {}.hasOwnProperty;
+var findAndReplace = function(tree, find, replace2, options) {
+  let settings;
+  let schema;
+  if (typeof find === "string" || find instanceof RegExp) {
+    schema = [[find, replace2]];
+    settings = options;
+  } else {
+    schema = find;
+    settings = replace2;
+  }
+  if (!settings) {
+    settings = {};
+  }
+  const ignored = convert(settings.ignore || []);
+  const pairs = toPairs(schema);
+  let pairIndex = -1;
+  while (++pairIndex < pairs.length) {
+    visitParents(tree, "text", visitor);
+  }
+  return tree;
+  function visitor(node, parents) {
+    let index2 = -1;
+    let grandparent;
+    while (++index2 < parents.length) {
+      const parent = parents[index2];
+      if (ignored(parent, grandparent ? grandparent.children.indexOf(parent) : void 0, grandparent)) {
+        return;
+      }
+      grandparent = parent;
+    }
+    if (grandparent) {
+      return handler(node, parents);
+    }
+  }
+  function handler(node, parents) {
+    const parent = parents[parents.length - 1];
+    const find2 = pairs[pairIndex][0];
+    const replace3 = pairs[pairIndex][1];
+    let start = 0;
+    const index2 = parent.children.indexOf(node);
+    let change = false;
+    let nodes = [];
+    let position2;
+    find2.lastIndex = 0;
+    let match = find2.exec(node.value);
+    while (match) {
+      position2 = match.index;
+      const matchObject = {
+        index: match.index,
+        input: match.input,
+        stack: [...parents, node]
+      };
+      let value2 = replace3(...match, matchObject);
+      if (typeof value2 === "string") {
+        value2 = value2.length > 0 ? { type: "text", value: value2 } : void 0;
+      }
+      if (value2 !== false) {
+        if (start !== position2) {
+          nodes.push({
+            type: "text",
+            value: node.value.slice(start, position2)
+          });
+        }
+        if (Array.isArray(value2)) {
+          nodes.push(...value2);
+        } else if (value2) {
+          nodes.push(value2);
+        }
+        start = position2 + match[0].length;
+        change = true;
+      }
+      if (!find2.global) {
         break;
       }
+      match = find2.exec(node.value);
+    }
+    if (change) {
+      if (start < node.value.length) {
+        nodes.push({ type: "text", value: node.value.slice(start) });
+      }
+      parent.children.splice(index2, 1, ...nodes);
+    } else {
+      nodes = [node];
+    }
+    return index2 + nodes.length;
+  }
+};
+function toPairs(schema) {
+  const result = [];
+  if (typeof schema !== "object") {
+    throw new TypeError("Expected array or object as schema");
+  }
+  if (Array.isArray(schema)) {
+    let index2 = -1;
+    while (++index2 < schema.length) {
+      result.push([
+        toExpression(schema[index2][0]),
+        toFunction(schema[index2][1])
+      ]);
+    }
+  } else {
+    let key;
+    for (key in schema) {
+      if (own3.call(schema, key)) {
+        result.push([toExpression(key), toFunction(schema[key])]);
+      }
     }
   }
-  index2 = headEnterIndex - 1;
-  tailExitIndex++;
-  while (++index2 <= tailExitIndex) {
-    if (enter === void 0) {
-      if (index2 !== tailExitIndex && events[index2][1].type !== "lineEnding") {
-        enter = index2;
-      }
-    } else if (index2 === tailExitIndex || events[index2][1].type === "lineEnding") {
-      events[enter][1].type = "mathTextData";
-      if (index2 !== enter + 2) {
-        events[enter][1].end = events[index2 - 1][1].end;
-        events.splice(enter + 2, index2 - enter - 2);
-        tailExitIndex -= index2 - enter - 2;
-        index2 = enter + 2;
-      }
-      enter = void 0;
-    }
-  }
-  return events;
+  return result;
 }
-function previous2(code2) {
-  return code2 !== 36 || this.events[this.events.length - 1][1].type === "characterEscape";
+function toExpression(find) {
+  return typeof find === "string" ? new RegExp(escapeStringRegexp(find), "g") : find;
+}
+function toFunction(replace2) {
+  return typeof replace2 === "function" ? replace2 : () => replace2;
 }
 
-// node_modules/micromark-extension-math/lib/syntax.js
-function math(options) {
-  return {
-    flow: {
-      [36]: mathFlow
-    },
-    text: {
-      [36]: mathText(options)
-    }
+// node_modules/mdast-util-gfm-autolink-literal/index.js
+var gfmAutolinkLiteralFromMarkdown = {
+  transforms: [transformGfmAutolinkLiterals],
+  enter: {
+    literalAutolink: enterLiteralAutolink,
+    literalAutolinkEmail: enterLiteralAutolinkValue,
+    literalAutolinkHttp: enterLiteralAutolinkValue,
+    literalAutolinkWww: enterLiteralAutolinkValue
+  },
+  exit: {
+    literalAutolink: exitLiteralAutolink,
+    literalAutolinkEmail: exitLiteralAutolinkEmail,
+    literalAutolinkHttp: exitLiteralAutolinkHttp,
+    literalAutolinkWww: exitLiteralAutolinkWww
+  }
+};
+function enterLiteralAutolink(token) {
+  this.enter({ type: "link", title: null, url: "", children: [] }, token);
+}
+function enterLiteralAutolinkValue(token) {
+  this.config.enter.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkHttp(token) {
+  this.config.exit.autolinkProtocol.call(this, token);
+}
+function exitLiteralAutolinkWww(token) {
+  this.config.exit.data.call(this, token);
+  const node = this.stack[this.stack.length - 1];
+  node.url = "http://" + this.sliceSerialize(token);
+}
+function exitLiteralAutolinkEmail(token) {
+  this.config.exit.autolinkEmail.call(this, token);
+}
+function exitLiteralAutolink(token) {
+  this.exit(token);
+}
+function transformGfmAutolinkLiterals(tree) {
+  findAndReplace(tree, [
+    [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+    [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
+  ], { ignore: ["link", "linkReference"] });
+}
+function findUrl(_, protocol, domain2, path2, match) {
+  let prefix = "";
+  if (!previous2(match)) {
+    return false;
+  }
+  if (/^w/i.test(protocol)) {
+    domain2 = protocol + domain2;
+    protocol = "";
+    prefix = "http://";
+  }
+  if (!isCorrectDomain(domain2)) {
+    return false;
+  }
+  const parts = splitUrl(domain2 + path2);
+  if (!parts[0])
+    return false;
+  const result = {
+    type: "link",
+    title: null,
+    url: prefix + protocol + parts[0],
+    children: [{ type: "text", value: protocol + parts[0] }]
   };
+  if (parts[1]) {
+    return [result, { type: "text", value: parts[1] }];
+  }
+  return result;
+}
+function findEmail(_, atext, label, match) {
+  if (!previous2(match, true) || /[_-\d]$/.test(label)) {
+    return false;
+  }
+  return {
+    type: "link",
+    title: null,
+    url: "mailto:" + atext + "@" + label,
+    children: [{ type: "text", value: atext + "@" + label }]
+  };
+}
+function isCorrectDomain(domain2) {
+  const parts = domain2.split(".");
+  if (parts.length < 2 || parts[parts.length - 1] && (/_/.test(parts[parts.length - 1]) || !/[a-zA-Z\d]/.test(parts[parts.length - 1])) || parts[parts.length - 2] && (/_/.test(parts[parts.length - 2]) || !/[a-zA-Z\d]/.test(parts[parts.length - 2]))) {
+    return false;
+  }
+  return true;
+}
+function splitUrl(url) {
+  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
+  let closingParenIndex;
+  let openingParens;
+  let closingParens;
+  let trail;
+  if (trailExec) {
+    url = url.slice(0, trailExec.index);
+    trail = trailExec[0];
+    closingParenIndex = trail.indexOf(")");
+    openingParens = ccount(url, "(");
+    closingParens = ccount(url, ")");
+    while (closingParenIndex !== -1 && openingParens > closingParens) {
+      url += trail.slice(0, closingParenIndex + 1);
+      trail = trail.slice(closingParenIndex + 1);
+      closingParenIndex = trail.indexOf(")");
+      closingParens++;
+    }
+  }
+  return [url, trail];
+}
+function previous2(match, email) {
+  const code2 = match.input.charCodeAt(match.index - 1);
+  return (match.index === 0 || unicodeWhitespace(code2) || unicodePunctuation(code2)) && (!email || code2 !== 47);
 }
 
 // node_modules/mdast-util-to-markdown/lib/util/track.js
@@ -22865,6 +23094,229 @@ function track(options_) {
     column = chunks.length === 1 ? column + tail.length : 1 + tail.length + lineShift;
     return value2;
   }
+}
+
+// node_modules/mdast-util-gfm-footnote/index.js
+function gfmFootnoteFromMarkdown() {
+  return {
+    enter: {
+      gfmFootnoteDefinition: enterFootnoteDefinition,
+      gfmFootnoteDefinitionLabelString: enterFootnoteDefinitionLabelString,
+      gfmFootnoteCall: enterFootnoteCall,
+      gfmFootnoteCallString: enterFootnoteCallString
+    },
+    exit: {
+      gfmFootnoteDefinition: exitFootnoteDefinition,
+      gfmFootnoteDefinitionLabelString: exitFootnoteDefinitionLabelString,
+      gfmFootnoteCall: exitFootnoteCall,
+      gfmFootnoteCallString: exitFootnoteCallString
+    }
+  };
+  function enterFootnoteDefinition(token) {
+    this.enter({ type: "footnoteDefinition", identifier: "", label: "", children: [] }, token);
+  }
+  function enterFootnoteDefinitionLabelString() {
+    this.buffer();
+  }
+  function exitFootnoteDefinitionLabelString(token) {
+    const label = this.resume();
+    const node = this.stack[this.stack.length - 1];
+    node.label = label;
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+  }
+  function exitFootnoteDefinition(token) {
+    this.exit(token);
+  }
+  function enterFootnoteCall(token) {
+    this.enter({ type: "footnoteReference", identifier: "", label: "" }, token);
+  }
+  function enterFootnoteCallString() {
+    this.buffer();
+  }
+  function exitFootnoteCallString(token) {
+    const label = this.resume();
+    const node = this.stack[this.stack.length - 1];
+    node.label = label;
+    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
+  }
+  function exitFootnoteCall(token) {
+    this.exit(token);
+  }
+}
+
+// node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
+function containerPhrasing(parent, context, safeOptions) {
+  const indexStack = context.indexStack;
+  const children = parent.children || [];
+  const results = [];
+  let index2 = -1;
+  let before = safeOptions.before;
+  indexStack.push(-1);
+  let tracker = track(safeOptions);
+  while (++index2 < children.length) {
+    const child = children[index2];
+    let after;
+    indexStack[indexStack.length - 1] = index2;
+    if (index2 + 1 < children.length) {
+      let handle = context.handle.handlers[children[index2 + 1].type];
+      if (handle && handle.peek)
+        handle = handle.peek;
+      after = handle ? handle(children[index2 + 1], parent, context, {
+        before: "",
+        after: "",
+        ...tracker.current()
+      }).charAt(0) : "";
+    } else {
+      after = safeOptions.after;
+    }
+    if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
+      results[results.length - 1] = results[results.length - 1].replace(/(\r?\n|\r)$/, " ");
+      before = " ";
+      tracker = track(safeOptions);
+      tracker.move(results.join(""));
+    }
+    results.push(tracker.move(context.handle(child, parent, context, {
+      ...tracker.current(),
+      before,
+      after
+    })));
+    before = results[results.length - 1].slice(-1);
+  }
+  indexStack.pop();
+  return results.join("");
+}
+
+// node_modules/mdast-util-gfm-strikethrough/index.js
+var gfmStrikethroughFromMarkdown = {
+  canContainEols: ["delete"],
+  enter: { strikethrough: enterStrikethrough },
+  exit: { strikethrough: exitStrikethrough }
+};
+handleDelete.peek = peekDelete;
+function enterStrikethrough(token) {
+  this.enter({ type: "delete", children: [] }, token);
+}
+function exitStrikethrough(token) {
+  this.exit(token);
+}
+function handleDelete(node, _, context, safeOptions) {
+  const tracker = track(safeOptions);
+  const exit3 = context.enter("emphasis");
+  let value2 = tracker.move("~~");
+  value2 += containerPhrasing(node, context, {
+    ...tracker.current(),
+    before: value2,
+    after: "~"
+  });
+  value2 += tracker.move("~~");
+  exit3();
+  return value2;
+}
+function peekDelete() {
+  return "~";
+}
+
+// node_modules/mdast-util-gfm-table/lib/index.js
+var gfmTableFromMarkdown = {
+  enter: {
+    table: enterTable,
+    tableData: enterCell,
+    tableHeader: enterCell,
+    tableRow: enterRow
+  },
+  exit: {
+    codeText: exitCodeText,
+    table: exitTable,
+    tableData: exit2,
+    tableHeader: exit2,
+    tableRow: exit2
+  }
+};
+function enterTable(token) {
+  const align = token._align;
+  this.enter({
+    type: "table",
+    align: align.map((d) => d === "none" ? null : d),
+    children: []
+  }, token);
+  this.setData("inTable", true);
+}
+function exitTable(token) {
+  this.exit(token);
+  this.setData("inTable");
+}
+function enterRow(token) {
+  this.enter({ type: "tableRow", children: [] }, token);
+}
+function exit2(token) {
+  this.exit(token);
+}
+function enterCell(token) {
+  this.enter({ type: "tableCell", children: [] }, token);
+}
+function exitCodeText(token) {
+  let value2 = this.resume();
+  if (this.getData("inTable")) {
+    value2 = value2.replace(/\\([\\|])/g, replace);
+  }
+  const node = this.stack[this.stack.length - 1];
+  node.value = value2;
+  this.exit(token);
+}
+function replace($0, $1) {
+  return $1 === "|" ? $1 : $0;
+}
+
+// node_modules/mdast-util-gfm-task-list-item/index.js
+var gfmTaskListItemFromMarkdown = {
+  exit: {
+    taskListCheckValueChecked: exitCheck,
+    taskListCheckValueUnchecked: exitCheck,
+    paragraph: exitParagraphWithTaskListItem
+  }
+};
+function exitCheck(token) {
+  const node = this.stack[this.stack.length - 2];
+  node.checked = token.type === "taskListCheckValueChecked";
+}
+function exitParagraphWithTaskListItem(token) {
+  const parent = this.stack[this.stack.length - 2];
+  const node = this.stack[this.stack.length - 1];
+  const siblings = parent.children;
+  const head = node.children[0];
+  let index2 = -1;
+  let firstParaghraph;
+  if (parent && parent.type === "listItem" && typeof parent.checked === "boolean" && head && head.type === "text") {
+    while (++index2 < siblings.length) {
+      const sibling = siblings[index2];
+      if (sibling.type === "paragraph") {
+        firstParaghraph = sibling;
+        break;
+      }
+    }
+    if (firstParaghraph === node) {
+      head.value = head.value.slice(1);
+      if (head.value.length === 0) {
+        node.children.shift();
+      } else if (node.position && head.position && typeof head.position.start.offset === "number") {
+        head.position.start.column++;
+        head.position.start.offset++;
+        node.position.start = Object.assign({}, head.position.start);
+      }
+    }
+  }
+  this.exit(token);
+}
+
+// node_modules/mdast-util-gfm/lib/index.js
+function gfmFromMarkdown() {
+  return [
+    gfmAutolinkLiteralFromMarkdown,
+    gfmFootnoteFromMarkdown(),
+    gfmStrikethroughFromMarkdown,
+    gfmTableFromMarkdown,
+    gfmTaskListItemFromMarkdown
+  ];
 }
 
 // node_modules/mdast-util-math/index.js
@@ -22941,104 +23393,887 @@ function mathFromMarkdown() {
   }
 }
 
-// node_modules/micromark-extension-gfm-task-list-item/lib/syntax.js
-var tasklistCheck = {
-  tokenize: tokenizeTasklistCheck
-};
-var gfmTaskListItem = {
-  text: {
-    [91]: tasklistCheck
+// node_modules/micromark-extension-frontmatter/lib/syntax.js
+function frontmatter(options) {
+  const settings = matters(options);
+  const flow3 = {};
+  let index2 = -1;
+  let matter2;
+  let code2;
+  while (++index2 < settings.length) {
+    matter2 = settings[index2];
+    code2 = fence(matter2, "open").charCodeAt(0);
+    if (code2 in flow3) {
+      flow3[code2].push(parse2(matter2));
+    } else {
+      flow3[code2] = [parse2(matter2)];
+    }
   }
-};
-function tokenizeTasklistCheck(effects, ok2, nok) {
-  const self = this;
-  return open;
-  function open(code2) {
-    if (self.previous !== null || !self._gfmTasklistFirstContentOfListItem) {
+  return {
+    flow: flow3
+  };
+}
+function parse2(matter2) {
+  const name = matter2.type;
+  const anywhere = matter2.anywhere;
+  const valueType = name + "Value";
+  const fenceType = name + "Fence";
+  const sequenceType = fenceType + "Sequence";
+  const fenceConstruct = {
+    tokenize: tokenizeFence,
+    partial: true
+  };
+  let buffer;
+  return {
+    tokenize: tokenizeFrontmatter,
+    concrete: true
+  };
+  function tokenizeFrontmatter(effects, ok2, nok) {
+    const self = this;
+    return start;
+    function start(code2) {
+      const position2 = self.now();
+      if (position2.column !== 1 || !anywhere && position2.line !== 1) {
+        return nok(code2);
+      }
+      effects.enter(name);
+      buffer = fence(matter2, "open");
+      return effects.attempt(fenceConstruct, afterOpeningFence, nok)(code2);
+    }
+    function afterOpeningFence(code2) {
+      buffer = fence(matter2, "close");
+      return lineEnd(code2);
+    }
+    function lineStart(code2) {
+      if (code2 === null || markdownLineEnding(code2)) {
+        return lineEnd(code2);
+      }
+      effects.enter(valueType);
+      return lineData(code2);
+    }
+    function lineData(code2) {
+      if (code2 === null || markdownLineEnding(code2)) {
+        effects.exit(valueType);
+        return lineEnd(code2);
+      }
+      effects.consume(code2);
+      return lineData;
+    }
+    function lineEnd(code2) {
+      if (code2 === null) {
+        return nok(code2);
+      }
+      effects.enter("lineEnding");
+      effects.consume(code2);
+      effects.exit("lineEnding");
+      return effects.attempt(fenceConstruct, after, lineStart);
+    }
+    function after(code2) {
+      effects.exit(name);
+      return ok2(code2);
+    }
+  }
+  function tokenizeFence(effects, ok2, nok) {
+    let bufferIndex = 0;
+    return start;
+    function start(code2) {
+      if (code2 === buffer.charCodeAt(bufferIndex)) {
+        effects.enter(fenceType);
+        effects.enter(sequenceType);
+        return insideSequence(code2);
+      }
       return nok(code2);
     }
-    effects.enter("taskListCheck");
-    effects.enter("taskListCheckMarker");
+    function insideSequence(code2) {
+      if (bufferIndex === buffer.length) {
+        effects.exit(sequenceType);
+        if (markdownSpace(code2)) {
+          effects.enter("whitespace");
+          return insideWhitespace(code2);
+        }
+        return fenceEnd(code2);
+      }
+      if (code2 === buffer.charCodeAt(bufferIndex++)) {
+        effects.consume(code2);
+        return insideSequence;
+      }
+      return nok(code2);
+    }
+    function insideWhitespace(code2) {
+      if (markdownSpace(code2)) {
+        effects.consume(code2);
+        return insideWhitespace;
+      }
+      effects.exit("whitespace");
+      return fenceEnd(code2);
+    }
+    function fenceEnd(code2) {
+      if (code2 === null || markdownLineEnding(code2)) {
+        effects.exit(fenceType);
+        return ok2(code2);
+      }
+      return nok(code2);
+    }
+  }
+}
+function fence(matter2, prop) {
+  return matter2.marker ? pick(matter2.marker, prop).repeat(3) : pick(matter2.fence, prop);
+}
+function pick(schema, prop) {
+  return typeof schema === "string" ? schema : schema[prop];
+}
+
+// node_modules/micromark-extension-gfm-autolink-literal/lib/syntax.js
+var www = {
+  tokenize: tokenizeWww,
+  partial: true
+};
+var domain = {
+  tokenize: tokenizeDomain,
+  partial: true
+};
+var path = {
+  tokenize: tokenizePath,
+  partial: true
+};
+var punctuation = {
+  tokenize: tokenizePunctuation,
+  partial: true
+};
+var namedCharacterReference = {
+  tokenize: tokenizeNamedCharacterReference,
+  partial: true
+};
+var wwwAutolink = {
+  tokenize: tokenizeWwwAutolink,
+  previous: previousWww
+};
+var httpAutolink = {
+  tokenize: tokenizeHttpAutolink,
+  previous: previousHttp
+};
+var emailAutolink = {
+  tokenize: tokenizeEmailAutolink,
+  previous: previousEmail
+};
+var text3 = {};
+var gfmAutolinkLiteral = {
+  text: text3
+};
+var code = 48;
+while (code < 123) {
+  text3[code] = emailAutolink;
+  code++;
+  if (code === 58)
+    code = 65;
+  else if (code === 91)
+    code = 97;
+}
+text3[43] = emailAutolink;
+text3[45] = emailAutolink;
+text3[46] = emailAutolink;
+text3[95] = emailAutolink;
+text3[72] = [emailAutolink, httpAutolink];
+text3[104] = [emailAutolink, httpAutolink];
+text3[87] = [emailAutolink, wwwAutolink];
+text3[119] = [emailAutolink, wwwAutolink];
+function tokenizeEmailAutolink(effects, ok2, nok) {
+  const self = this;
+  let hasDot;
+  let hasDigitInLastSegment;
+  return start;
+  function start(code2) {
+    if (!gfmAtext(code2) || !previousEmail(self.previous) || previousUnbalanced(self.events)) {
+      return nok(code2);
+    }
+    effects.enter("literalAutolink");
+    effects.enter("literalAutolinkEmail");
+    return atext(code2);
+  }
+  function atext(code2) {
+    if (gfmAtext(code2)) {
+      effects.consume(code2);
+      return atext;
+    }
+    if (code2 === 64) {
+      effects.consume(code2);
+      return label;
+    }
+    return nok(code2);
+  }
+  function label(code2) {
+    if (code2 === 46) {
+      return effects.check(punctuation, done, dotContinuation)(code2);
+    }
+    if (code2 === 45 || code2 === 95) {
+      return effects.check(punctuation, nok, dashOrUnderscoreContinuation)(code2);
+    }
+    if (asciiAlphanumeric(code2)) {
+      if (!hasDigitInLastSegment && asciiDigit(code2)) {
+        hasDigitInLastSegment = true;
+      }
+      effects.consume(code2);
+      return label;
+    }
+    return done(code2);
+  }
+  function dotContinuation(code2) {
     effects.consume(code2);
-    effects.exit("taskListCheckMarker");
+    hasDot = true;
+    hasDigitInLastSegment = void 0;
+    return label;
+  }
+  function dashOrUnderscoreContinuation(code2) {
+    effects.consume(code2);
+    return afterDashOrUnderscore;
+  }
+  function afterDashOrUnderscore(code2) {
+    if (code2 === 46) {
+      return effects.check(punctuation, nok, dotContinuation)(code2);
+    }
+    return label(code2);
+  }
+  function done(code2) {
+    if (hasDot && !hasDigitInLastSegment) {
+      effects.exit("literalAutolinkEmail");
+      effects.exit("literalAutolink");
+      return ok2(code2);
+    }
+    return nok(code2);
+  }
+}
+function tokenizeWwwAutolink(effects, ok2, nok) {
+  const self = this;
+  return start;
+  function start(code2) {
+    if (code2 !== 87 && code2 !== 119 || !previousWww(self.previous) || previousUnbalanced(self.events)) {
+      return nok(code2);
+    }
+    effects.enter("literalAutolink");
+    effects.enter("literalAutolinkWww");
+    return effects.check(www, effects.attempt(domain, effects.attempt(path, done), nok), nok)(code2);
+  }
+  function done(code2) {
+    effects.exit("literalAutolinkWww");
+    effects.exit("literalAutolink");
+    return ok2(code2);
+  }
+}
+function tokenizeHttpAutolink(effects, ok2, nok) {
+  const self = this;
+  return start;
+  function start(code2) {
+    if (code2 !== 72 && code2 !== 104 || !previousHttp(self.previous) || previousUnbalanced(self.events)) {
+      return nok(code2);
+    }
+    effects.enter("literalAutolink");
+    effects.enter("literalAutolinkHttp");
+    effects.consume(code2);
+    return t1;
+  }
+  function t1(code2) {
+    if (code2 === 84 || code2 === 116) {
+      effects.consume(code2);
+      return t2;
+    }
+    return nok(code2);
+  }
+  function t2(code2) {
+    if (code2 === 84 || code2 === 116) {
+      effects.consume(code2);
+      return p;
+    }
+    return nok(code2);
+  }
+  function p(code2) {
+    if (code2 === 80 || code2 === 112) {
+      effects.consume(code2);
+      return s;
+    }
+    return nok(code2);
+  }
+  function s(code2) {
+    if (code2 === 83 || code2 === 115) {
+      effects.consume(code2);
+      return colon;
+    }
+    return colon(code2);
+  }
+  function colon(code2) {
+    if (code2 === 58) {
+      effects.consume(code2);
+      return slash1;
+    }
+    return nok(code2);
+  }
+  function slash1(code2) {
+    if (code2 === 47) {
+      effects.consume(code2);
+      return slash2;
+    }
+    return nok(code2);
+  }
+  function slash2(code2) {
+    if (code2 === 47) {
+      effects.consume(code2);
+      return after;
+    }
+    return nok(code2);
+  }
+  function after(code2) {
+    return code2 === null || asciiControl(code2) || unicodeWhitespace(code2) || unicodePunctuation(code2) ? nok(code2) : effects.attempt(domain, effects.attempt(path, done), nok)(code2);
+  }
+  function done(code2) {
+    effects.exit("literalAutolinkHttp");
+    effects.exit("literalAutolink");
+    return ok2(code2);
+  }
+}
+function tokenizeWww(effects, ok2, nok) {
+  return start;
+  function start(code2) {
+    effects.consume(code2);
+    return w2;
+  }
+  function w2(code2) {
+    if (code2 === 87 || code2 === 119) {
+      effects.consume(code2);
+      return w3;
+    }
+    return nok(code2);
+  }
+  function w3(code2) {
+    if (code2 === 87 || code2 === 119) {
+      effects.consume(code2);
+      return dot;
+    }
+    return nok(code2);
+  }
+  function dot(code2) {
+    if (code2 === 46) {
+      effects.consume(code2);
+      return after;
+    }
+    return nok(code2);
+  }
+  function after(code2) {
+    return code2 === null || markdownLineEnding(code2) ? nok(code2) : ok2(code2);
+  }
+}
+function tokenizeDomain(effects, ok2, nok) {
+  let hasUnderscoreInLastSegment;
+  let hasUnderscoreInLastLastSegment;
+  return domain2;
+  function domain2(code2) {
+    if (code2 === 38) {
+      return effects.check(namedCharacterReference, done, punctuationContinuation)(code2);
+    }
+    if (code2 === 46 || code2 === 95) {
+      return effects.check(punctuation, done, punctuationContinuation)(code2);
+    }
+    if (code2 === null || asciiControl(code2) || unicodeWhitespace(code2) || code2 !== 45 && unicodePunctuation(code2)) {
+      return done(code2);
+    }
+    effects.consume(code2);
+    return domain2;
+  }
+  function punctuationContinuation(code2) {
+    if (code2 === 46) {
+      hasUnderscoreInLastLastSegment = hasUnderscoreInLastSegment;
+      hasUnderscoreInLastSegment = void 0;
+      effects.consume(code2);
+      return domain2;
+    }
+    if (code2 === 95)
+      hasUnderscoreInLastSegment = true;
+    effects.consume(code2);
+    return domain2;
+  }
+  function done(code2) {
+    if (!hasUnderscoreInLastLastSegment && !hasUnderscoreInLastSegment) {
+      return ok2(code2);
+    }
+    return nok(code2);
+  }
+}
+function tokenizePath(effects, ok2) {
+  let balance = 0;
+  return inPath;
+  function inPath(code2) {
+    if (code2 === 38) {
+      return effects.check(namedCharacterReference, ok2, continuedPunctuation)(code2);
+    }
+    if (code2 === 40) {
+      balance++;
+    }
+    if (code2 === 41) {
+      return effects.check(punctuation, parenAtPathEnd, continuedPunctuation)(code2);
+    }
+    if (pathEnd(code2)) {
+      return ok2(code2);
+    }
+    if (trailingPunctuation(code2)) {
+      return effects.check(punctuation, ok2, continuedPunctuation)(code2);
+    }
+    effects.consume(code2);
+    return inPath;
+  }
+  function continuedPunctuation(code2) {
+    effects.consume(code2);
+    return inPath;
+  }
+  function parenAtPathEnd(code2) {
+    balance--;
+    return balance < 0 ? ok2(code2) : continuedPunctuation(code2);
+  }
+}
+function tokenizeNamedCharacterReference(effects, ok2, nok) {
+  return start;
+  function start(code2) {
+    effects.consume(code2);
     return inside;
   }
   function inside(code2) {
-    if (markdownLineEndingOrSpace(code2)) {
-      effects.enter("taskListCheckValueUnchecked");
+    if (asciiAlpha(code2)) {
       effects.consume(code2);
-      effects.exit("taskListCheckValueUnchecked");
-      return close2;
+      return inside;
     }
-    if (code2 === 88 || code2 === 120) {
-      effects.enter("taskListCheckValueChecked");
+    if (code2 === 59) {
       effects.consume(code2);
-      effects.exit("taskListCheckValueChecked");
-      return close2;
+      return after;
     }
     return nok(code2);
   }
-  function close2(code2) {
-    if (code2 === 93) {
-      effects.enter("taskListCheckMarker");
-      effects.consume(code2);
-      effects.exit("taskListCheckMarker");
-      effects.exit("taskListCheck");
-      return effects.check({
-        tokenize: spaceThenNonSpace
-      }, ok2, nok);
-    }
-    return nok(code2);
+  function after(code2) {
+    return pathEnd(code2) ? ok2(code2) : nok(code2);
   }
 }
-function spaceThenNonSpace(effects, ok2, nok) {
-  const self = this;
-  return factorySpace(effects, after, "whitespace");
+function tokenizePunctuation(effects, ok2, nok) {
+  return start;
+  function start(code2) {
+    effects.consume(code2);
+    return after;
+  }
   function after(code2) {
+    if (trailingPunctuation(code2)) {
+      effects.consume(code2);
+      return after;
+    }
+    return pathEnd(code2) ? ok2(code2) : nok(code2);
+  }
+}
+function trailingPunctuation(code2) {
+  return code2 === 33 || code2 === 34 || code2 === 39 || code2 === 41 || code2 === 42 || code2 === 44 || code2 === 46 || code2 === 58 || code2 === 59 || code2 === 60 || code2 === 63 || code2 === 95 || code2 === 126;
+}
+function pathEnd(code2) {
+  return code2 === null || code2 === 60 || markdownLineEndingOrSpace(code2);
+}
+function gfmAtext(code2) {
+  return code2 === 43 || code2 === 45 || code2 === 46 || code2 === 95 || asciiAlphanumeric(code2);
+}
+function previousWww(code2) {
+  return code2 === null || code2 === 40 || code2 === 42 || code2 === 95 || code2 === 126 || markdownLineEndingOrSpace(code2);
+}
+function previousHttp(code2) {
+  return code2 === null || !asciiAlpha(code2);
+}
+function previousEmail(code2) {
+  return code2 !== 47 && previousHttp(code2);
+}
+function previousUnbalanced(events) {
+  let index2 = events.length;
+  let result = false;
+  while (index2--) {
+    const token = events[index2][1];
+    if ((token.type === "labelLink" || token.type === "labelImage") && !token._balanced) {
+      result = true;
+      break;
+    }
+    if (token._gfmAutolinkLiteralWalkedInto) {
+      result = false;
+      break;
+    }
+  }
+  if (events.length > 0 && !result) {
+    events[events.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
+  }
+  return result;
+}
+
+// node_modules/micromark-extension-gfm-footnote/lib/syntax.js
+var indent = {
+  tokenize: tokenizeIndent2,
+  partial: true
+};
+function gfmFootnote() {
+  return {
+    document: {
+      [91]: {
+        tokenize: tokenizeDefinitionStart,
+        continuation: {
+          tokenize: tokenizeDefinitionContinuation
+        },
+        exit: gfmFootnoteDefinitionEnd
+      }
+    },
+    text: {
+      [91]: {
+        tokenize: tokenizeGfmFootnoteCall
+      },
+      [93]: {
+        add: "after",
+        tokenize: tokenizePotentialGfmFootnoteCall,
+        resolveTo: resolveToPotentialGfmFootnoteCall
+      }
+    }
+  };
+}
+function tokenizePotentialGfmFootnoteCall(effects, ok2, nok) {
+  const self = this;
+  let index2 = self.events.length;
+  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
+  let labelStart;
+  while (index2--) {
+    const token = self.events[index2][1];
+    if (token.type === "labelImage") {
+      labelStart = token;
+      break;
+    }
+    if (token.type === "gfmFootnoteCall" || token.type === "labelLink" || token.type === "label" || token.type === "image" || token.type === "link") {
+      break;
+    }
+  }
+  return start;
+  function start(code2) {
+    if (!labelStart || !labelStart._balanced) {
+      return nok(code2);
+    }
+    const id = normalizeIdentifier(self.sliceSerialize({
+      start: labelStart.end,
+      end: self.now()
+    }));
+    if (id.charCodeAt(0) !== 94 || !defined.includes(id.slice(1))) {
+      return nok(code2);
+    }
+    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.consume(code2);
+    effects.exit("gfmFootnoteCallLabelMarker");
+    return ok2(code2);
+  }
+}
+function resolveToPotentialGfmFootnoteCall(events, context) {
+  let index2 = events.length;
+  let labelStart;
+  while (index2--) {
+    if (events[index2][1].type === "labelImage" && events[index2][0] === "enter") {
+      labelStart = events[index2][1];
+      break;
+    }
+  }
+  events[index2 + 1][1].type = "data";
+  events[index2 + 3][1].type = "gfmFootnoteCallLabelMarker";
+  const call = {
+    type: "gfmFootnoteCall",
+    start: Object.assign({}, events[index2 + 3][1].start),
+    end: Object.assign({}, events[events.length - 1][1].end)
+  };
+  const marker = {
+    type: "gfmFootnoteCallMarker",
+    start: Object.assign({}, events[index2 + 3][1].end),
+    end: Object.assign({}, events[index2 + 3][1].end)
+  };
+  marker.end.column++;
+  marker.end.offset++;
+  marker.end._bufferIndex++;
+  const string3 = {
+    type: "gfmFootnoteCallString",
+    start: Object.assign({}, marker.end),
+    end: Object.assign({}, events[events.length - 1][1].start)
+  };
+  const chunk = {
+    type: "chunkString",
+    contentType: "string",
+    start: Object.assign({}, string3.start),
+    end: Object.assign({}, string3.end)
+  };
+  const replacement = [
+    events[index2 + 1],
+    events[index2 + 2],
+    ["enter", call, context],
+    events[index2 + 3],
+    events[index2 + 4],
+    ["enter", marker, context],
+    ["exit", marker, context],
+    ["enter", string3, context],
+    ["enter", chunk, context],
+    ["exit", chunk, context],
+    ["exit", string3, context],
+    events[events.length - 2],
+    events[events.length - 1],
+    ["exit", call, context]
+  ];
+  events.splice(index2, events.length - index2 + 1, ...replacement);
+  return events;
+}
+function tokenizeGfmFootnoteCall(effects, ok2, nok) {
+  const self = this;
+  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
+  let size = 0;
+  let data;
+  return start;
+  function start(code2) {
+    effects.enter("gfmFootnoteCall");
+    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.consume(code2);
+    effects.exit("gfmFootnoteCallLabelMarker");
+    return callStart;
+  }
+  function callStart(code2) {
+    if (code2 !== 94)
+      return nok(code2);
+    effects.enter("gfmFootnoteCallMarker");
+    effects.consume(code2);
+    effects.exit("gfmFootnoteCallMarker");
+    effects.enter("gfmFootnoteCallString");
+    effects.enter("chunkString").contentType = "string";
+    return callData;
+  }
+  function callData(code2) {
+    let token;
+    if (code2 === null || code2 === 91 || size++ > 999) {
+      return nok(code2);
+    }
+    if (code2 === 93) {
+      if (!data) {
+        return nok(code2);
+      }
+      effects.exit("chunkString");
+      token = effects.exit("gfmFootnoteCallString");
+      return defined.includes(normalizeIdentifier(self.sliceSerialize(token))) ? end(code2) : nok(code2);
+    }
+    effects.consume(code2);
+    if (!markdownLineEndingOrSpace(code2)) {
+      data = true;
+    }
+    return code2 === 92 ? callEscape : callData;
+  }
+  function callEscape(code2) {
+    if (code2 === 91 || code2 === 92 || code2 === 93) {
+      effects.consume(code2);
+      size++;
+      return callData;
+    }
+    return callData(code2);
+  }
+  function end(code2) {
+    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.consume(code2);
+    effects.exit("gfmFootnoteCallLabelMarker");
+    effects.exit("gfmFootnoteCall");
+    return ok2;
+  }
+}
+function tokenizeDefinitionStart(effects, ok2, nok) {
+  const self = this;
+  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
+  let identifier;
+  let size = 0;
+  let data;
+  return start;
+  function start(code2) {
+    effects.enter("gfmFootnoteDefinition")._container = true;
+    effects.enter("gfmFootnoteDefinitionLabel");
+    effects.enter("gfmFootnoteDefinitionLabelMarker");
+    effects.consume(code2);
+    effects.exit("gfmFootnoteDefinitionLabelMarker");
+    return labelStart;
+  }
+  function labelStart(code2) {
+    if (code2 === 94) {
+      effects.enter("gfmFootnoteDefinitionMarker");
+      effects.consume(code2);
+      effects.exit("gfmFootnoteDefinitionMarker");
+      effects.enter("gfmFootnoteDefinitionLabelString");
+      return atBreak;
+    }
+    return nok(code2);
+  }
+  function atBreak(code2) {
+    let token;
+    if (code2 === null || code2 === 91 || size > 999) {
+      return nok(code2);
+    }
+    if (code2 === 93) {
+      if (!data) {
+        return nok(code2);
+      }
+      token = effects.exit("gfmFootnoteDefinitionLabelString");
+      identifier = normalizeIdentifier(self.sliceSerialize(token));
+      effects.enter("gfmFootnoteDefinitionLabelMarker");
+      effects.consume(code2);
+      effects.exit("gfmFootnoteDefinitionLabelMarker");
+      effects.exit("gfmFootnoteDefinitionLabel");
+      return labelAfter;
+    }
+    if (markdownLineEnding(code2)) {
+      effects.enter("lineEnding");
+      effects.consume(code2);
+      effects.exit("lineEnding");
+      size++;
+      return atBreak;
+    }
+    effects.enter("chunkString").contentType = "string";
+    return label(code2);
+  }
+  function label(code2) {
+    if (code2 === null || markdownLineEnding(code2) || code2 === 91 || code2 === 93 || size > 999) {
+      effects.exit("chunkString");
+      return atBreak(code2);
+    }
+    if (!markdownLineEndingOrSpace(code2)) {
+      data = true;
+    }
+    size++;
+    effects.consume(code2);
+    return code2 === 92 ? labelEscape : label;
+  }
+  function labelEscape(code2) {
+    if (code2 === 91 || code2 === 92 || code2 === 93) {
+      effects.consume(code2);
+      size++;
+      return label;
+    }
+    return label(code2);
+  }
+  function labelAfter(code2) {
+    if (code2 === 58) {
+      effects.enter("definitionMarker");
+      effects.consume(code2);
+      effects.exit("definitionMarker");
+      return factorySpace(effects, done, "gfmFootnoteDefinitionWhitespace");
+    }
+    return nok(code2);
+  }
+  function done(code2) {
+    if (!defined.includes(identifier)) {
+      defined.push(identifier);
+    }
+    return ok2(code2);
+  }
+}
+function tokenizeDefinitionContinuation(effects, ok2, nok) {
+  return effects.check(blankLine, ok2, effects.attempt(indent, ok2, nok));
+}
+function gfmFootnoteDefinitionEnd(effects) {
+  effects.exit("gfmFootnoteDefinition");
+}
+function tokenizeIndent2(effects, ok2, nok) {
+  const self = this;
+  return factorySpace(effects, afterPrefix, "gfmFootnoteDefinitionIndent", 4 + 1);
+  function afterPrefix(code2) {
     const tail = self.events[self.events.length - 1];
-    return (tail && tail[1].type === "whitespace" || markdownLineEnding(code2)) && code2 !== null ? ok2(code2) : nok(code2);
+    return tail && tail[1].type === "gfmFootnoteDefinitionIndent" && tail[2].sliceSerialize(tail[1], true).length === 4 ? ok2(code2) : nok(code2);
   }
 }
 
-// node_modules/mdast-util-gfm-task-list-item/index.js
-var gfmTaskListItemFromMarkdown = {
-  exit: {
-    taskListCheckValueChecked: exitCheck,
-    taskListCheckValueUnchecked: exitCheck,
-    paragraph: exitParagraphWithTaskListItem
+// node_modules/micromark-extension-gfm-strikethrough/lib/syntax.js
+function gfmStrikethrough(options = {}) {
+  let single = options.singleTilde;
+  const tokenizer = {
+    tokenize: tokenizeStrikethrough,
+    resolveAll: resolveAllStrikethrough
+  };
+  if (single === null || single === void 0) {
+    single = true;
   }
-};
-function exitCheck(token) {
-  const node = this.stack[this.stack.length - 2];
-  node.checked = token.type === "taskListCheckValueChecked";
-}
-function exitParagraphWithTaskListItem(token) {
-  const parent = this.stack[this.stack.length - 2];
-  const node = this.stack[this.stack.length - 1];
-  const siblings = parent.children;
-  const head = node.children[0];
-  let index2 = -1;
-  let firstParaghraph;
-  if (parent && parent.type === "listItem" && typeof parent.checked === "boolean" && head && head.type === "text") {
-    while (++index2 < siblings.length) {
-      const sibling = siblings[index2];
-      if (sibling.type === "paragraph") {
-        firstParaghraph = sibling;
-        break;
+  return {
+    text: {
+      [126]: tokenizer
+    },
+    insideSpan: {
+      null: [tokenizer]
+    },
+    attentionMarkers: {
+      null: [126]
+    }
+  };
+  function resolveAllStrikethrough(events, context) {
+    let index2 = -1;
+    while (++index2 < events.length) {
+      if (events[index2][0] === "enter" && events[index2][1].type === "strikethroughSequenceTemporary" && events[index2][1]._close) {
+        let open = index2;
+        while (open--) {
+          if (events[open][0] === "exit" && events[open][1].type === "strikethroughSequenceTemporary" && events[open][1]._open && events[index2][1].end.offset - events[index2][1].start.offset === events[open][1].end.offset - events[open][1].start.offset) {
+            events[index2][1].type = "strikethroughSequence";
+            events[open][1].type = "strikethroughSequence";
+            const strikethrough = {
+              type: "strikethrough",
+              start: Object.assign({}, events[open][1].start),
+              end: Object.assign({}, events[index2][1].end)
+            };
+            const text4 = {
+              type: "strikethroughText",
+              start: Object.assign({}, events[open][1].end),
+              end: Object.assign({}, events[index2][1].start)
+            };
+            const nextEvents = [
+              ["enter", strikethrough, context],
+              ["enter", events[open][1], context],
+              ["exit", events[open][1], context],
+              ["enter", text4, context]
+            ];
+            splice(nextEvents, nextEvents.length, 0, resolveAll(context.parser.constructs.insideSpan.null, events.slice(open + 1, index2), context));
+            splice(nextEvents, nextEvents.length, 0, [
+              ["exit", text4, context],
+              ["enter", events[index2][1], context],
+              ["exit", events[index2][1], context],
+              ["exit", strikethrough, context]
+            ]);
+            splice(events, open - 1, index2 - open + 3, nextEvents);
+            index2 = open + nextEvents.length - 2;
+            break;
+          }
+        }
       }
     }
-    if (firstParaghraph === node) {
-      head.value = head.value.slice(1);
-      if (head.value.length === 0) {
-        node.children.shift();
-      } else if (node.position && head.position && typeof head.position.start.offset === "number") {
-        head.position.start.column++;
-        head.position.start.offset++;
-        node.position.start = Object.assign({}, head.position.start);
+    index2 = -1;
+    while (++index2 < events.length) {
+      if (events[index2][1].type === "strikethroughSequenceTemporary") {
+        events[index2][1].type = "data";
       }
     }
+    return events;
   }
-  this.exit(token);
+  function tokenizeStrikethrough(effects, ok2, nok) {
+    const previous4 = this.previous;
+    const events = this.events;
+    let size = 0;
+    return start;
+    function start(code2) {
+      if (previous4 === 126 && events[events.length - 1][1].type !== "characterEscape") {
+        return nok(code2);
+      }
+      effects.enter("strikethroughSequenceTemporary");
+      return more(code2);
+    }
+    function more(code2) {
+      const before = classifyCharacter(previous4);
+      if (code2 === 126) {
+        if (size > 1)
+          return nok(code2);
+        effects.consume(code2);
+        size++;
+        return more;
+      }
+      if (size < 2 && !single)
+        return nok(code2);
+      const token = effects.exit("strikethroughSequenceTemporary");
+      const after = classifyCharacter(code2);
+      token._open = !after || after === 2 && Boolean(before);
+      token._close = !before || before === 2 && Boolean(after);
+      return ok2(code2);
+    }
+  }
 }
 
 // node_modules/micromark-extension-gfm-table/lib/syntax.js
@@ -23426,1306 +24661,63 @@ function tokenizeNextPrefixedOrBlank(effects, ok2, nok) {
   }
 }
 
-// node_modules/mdast-util-to-markdown/lib/util/container-phrasing.js
-function containerPhrasing(parent, context, safeOptions) {
-  const indexStack = context.indexStack;
-  const children = parent.children || [];
-  const results = [];
-  let index2 = -1;
-  let before = safeOptions.before;
-  indexStack.push(-1);
-  let tracker = track(safeOptions);
-  while (++index2 < children.length) {
-    const child = children[index2];
-    let after;
-    indexStack[indexStack.length - 1] = index2;
-    if (index2 + 1 < children.length) {
-      let handle = context.handle.handlers[children[index2 + 1].type];
-      if (handle && handle.peek)
-        handle = handle.peek;
-      after = handle ? handle(children[index2 + 1], parent, context, {
-        before: "",
-        after: "",
-        ...tracker.current()
-      }).charAt(0) : "";
-    } else {
-      after = safeOptions.after;
-    }
-    if (results.length > 0 && (before === "\r" || before === "\n") && child.type === "html") {
-      results[results.length - 1] = results[results.length - 1].replace(/(\r?\n|\r)$/, " ");
-      before = " ";
-      tracker = track(safeOptions);
-      tracker.move(results.join(""));
-    }
-    results.push(tracker.move(context.handle(child, parent, context, {
-      ...tracker.current(),
-      before,
-      after
-    })));
-    before = results[results.length - 1].slice(-1);
-  }
-  indexStack.pop();
-  return results.join("");
-}
-
-// node_modules/mdast-util-gfm-table/lib/index.js
-var gfmTableFromMarkdown = {
-  enter: {
-    table: enterTable,
-    tableData: enterCell,
-    tableHeader: enterCell,
-    tableRow: enterRow
-  },
-  exit: {
-    codeText: exitCodeText,
-    table: exitTable,
-    tableData: exit2,
-    tableHeader: exit2,
-    tableRow: exit2
+// node_modules/micromark-extension-gfm-task-list-item/lib/syntax.js
+var tasklistCheck = {
+  tokenize: tokenizeTasklistCheck
+};
+var gfmTaskListItem = {
+  text: {
+    [91]: tasklistCheck
   }
 };
-function enterTable(token) {
-  const align = token._align;
-  this.enter({
-    type: "table",
-    align: align.map((d) => d === "none" ? null : d),
-    children: []
-  }, token);
-  this.setData("inTable", true);
-}
-function exitTable(token) {
-  this.exit(token);
-  this.setData("inTable");
-}
-function enterRow(token) {
-  this.enter({ type: "tableRow", children: [] }, token);
-}
-function exit2(token) {
-  this.exit(token);
-}
-function enterCell(token) {
-  this.enter({ type: "tableCell", children: [] }, token);
-}
-function exitCodeText(token) {
-  let value2 = this.resume();
-  if (this.getData("inTable")) {
-    value2 = value2.replace(/\\([\\|])/g, replace);
-  }
-  const node = this.stack[this.stack.length - 1];
-  node.value = value2;
-  this.exit(token);
-}
-function replace($0, $1) {
-  return $1 === "|" ? $1 : $0;
-}
-
-// node_modules/micromark-extension-gfm-strikethrough/lib/syntax.js
-function gfmStrikethrough(options = {}) {
-  let single = options.singleTilde;
-  const tokenizer = {
-    tokenize: tokenizeStrikethrough,
-    resolveAll: resolveAllStrikethrough
-  };
-  if (single === null || single === void 0) {
-    single = true;
-  }
-  return {
-    text: {
-      [126]: tokenizer
-    },
-    insideSpan: {
-      null: [tokenizer]
-    },
-    attentionMarkers: {
-      null: [126]
-    }
-  };
-  function resolveAllStrikethrough(events, context) {
-    let index2 = -1;
-    while (++index2 < events.length) {
-      if (events[index2][0] === "enter" && events[index2][1].type === "strikethroughSequenceTemporary" && events[index2][1]._close) {
-        let open = index2;
-        while (open--) {
-          if (events[open][0] === "exit" && events[open][1].type === "strikethroughSequenceTemporary" && events[open][1]._open && events[index2][1].end.offset - events[index2][1].start.offset === events[open][1].end.offset - events[open][1].start.offset) {
-            events[index2][1].type = "strikethroughSequence";
-            events[open][1].type = "strikethroughSequence";
-            const strikethrough = {
-              type: "strikethrough",
-              start: Object.assign({}, events[open][1].start),
-              end: Object.assign({}, events[index2][1].end)
-            };
-            const text4 = {
-              type: "strikethroughText",
-              start: Object.assign({}, events[open][1].end),
-              end: Object.assign({}, events[index2][1].start)
-            };
-            const nextEvents = [
-              ["enter", strikethrough, context],
-              ["enter", events[open][1], context],
-              ["exit", events[open][1], context],
-              ["enter", text4, context]
-            ];
-            splice(nextEvents, nextEvents.length, 0, resolveAll(context.parser.constructs.insideSpan.null, events.slice(open + 1, index2), context));
-            splice(nextEvents, nextEvents.length, 0, [
-              ["exit", text4, context],
-              ["enter", events[index2][1], context],
-              ["exit", events[index2][1], context],
-              ["exit", strikethrough, context]
-            ]);
-            splice(events, open - 1, index2 - open + 3, nextEvents);
-            index2 = open + nextEvents.length - 2;
-            break;
-          }
-        }
-      }
-    }
-    index2 = -1;
-    while (++index2 < events.length) {
-      if (events[index2][1].type === "strikethroughSequenceTemporary") {
-        events[index2][1].type = "data";
-      }
-    }
-    return events;
-  }
-  function tokenizeStrikethrough(effects, ok2, nok) {
-    const previous4 = this.previous;
-    const events = this.events;
-    let size = 0;
-    return start;
-    function start(code2) {
-      if (previous4 === 126 && events[events.length - 1][1].type !== "characterEscape") {
-        return nok(code2);
-      }
-      effects.enter("strikethroughSequenceTemporary");
-      return more(code2);
-    }
-    function more(code2) {
-      const before = classifyCharacter(previous4);
-      if (code2 === 126) {
-        if (size > 1)
-          return nok(code2);
-        effects.consume(code2);
-        size++;
-        return more;
-      }
-      if (size < 2 && !single)
-        return nok(code2);
-      const token = effects.exit("strikethroughSequenceTemporary");
-      const after = classifyCharacter(code2);
-      token._open = !after || after === 2 && Boolean(before);
-      token._close = !before || before === 2 && Boolean(after);
-      return ok2(code2);
-    }
-  }
-}
-
-// node_modules/mdast-util-gfm-strikethrough/index.js
-var gfmStrikethroughFromMarkdown = {
-  canContainEols: ["delete"],
-  enter: { strikethrough: enterStrikethrough },
-  exit: { strikethrough: exitStrikethrough }
-};
-handleDelete.peek = peekDelete;
-function enterStrikethrough(token) {
-  this.enter({ type: "delete", children: [] }, token);
-}
-function exitStrikethrough(token) {
-  this.exit(token);
-}
-function handleDelete(node, _, context, safeOptions) {
-  const tracker = track(safeOptions);
-  const exit3 = context.enter("emphasis");
-  let value2 = tracker.move("~~");
-  value2 += containerPhrasing(node, context, {
-    ...tracker.current(),
-    before: value2,
-    after: "~"
-  });
-  value2 += tracker.move("~~");
-  exit3();
-  return value2;
-}
-function peekDelete() {
-  return "~";
-}
-
-// node_modules/micromark-extension-gfm-footnote/lib/syntax.js
-var indent = {
-  tokenize: tokenizeIndent2,
-  partial: true
-};
-function gfmFootnote() {
-  return {
-    document: {
-      [91]: {
-        tokenize: tokenizeDefinitionStart,
-        continuation: {
-          tokenize: tokenizeDefinitionContinuation
-        },
-        exit: gfmFootnoteDefinitionEnd
-      }
-    },
-    text: {
-      [91]: {
-        tokenize: tokenizeGfmFootnoteCall
-      },
-      [93]: {
-        add: "after",
-        tokenize: tokenizePotentialGfmFootnoteCall,
-        resolveTo: resolveToPotentialGfmFootnoteCall
-      }
-    }
-  };
-}
-function tokenizePotentialGfmFootnoteCall(effects, ok2, nok) {
+function tokenizeTasklistCheck(effects, ok2, nok) {
   const self = this;
-  let index2 = self.events.length;
-  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
-  let labelStart;
-  while (index2--) {
-    const token = self.events[index2][1];
-    if (token.type === "labelImage") {
-      labelStart = token;
-      break;
-    }
-    if (token.type === "gfmFootnoteCall" || token.type === "labelLink" || token.type === "label" || token.type === "image" || token.type === "link") {
-      break;
-    }
-  }
-  return start;
-  function start(code2) {
-    if (!labelStart || !labelStart._balanced) {
+  return open;
+  function open(code2) {
+    if (self.previous !== null || !self._gfmTasklistFirstContentOfListItem) {
       return nok(code2);
     }
-    const id = normalizeIdentifier(self.sliceSerialize({
-      start: labelStart.end,
-      end: self.now()
-    }));
-    if (id.charCodeAt(0) !== 94 || !defined.includes(id.slice(1))) {
-      return nok(code2);
-    }
-    effects.enter("gfmFootnoteCallLabelMarker");
+    effects.enter("taskListCheck");
+    effects.enter("taskListCheckMarker");
     effects.consume(code2);
-    effects.exit("gfmFootnoteCallLabelMarker");
-    return ok2(code2);
-  }
-}
-function resolveToPotentialGfmFootnoteCall(events, context) {
-  let index2 = events.length;
-  let labelStart;
-  while (index2--) {
-    if (events[index2][1].type === "labelImage" && events[index2][0] === "enter") {
-      labelStart = events[index2][1];
-      break;
-    }
-  }
-  events[index2 + 1][1].type = "data";
-  events[index2 + 3][1].type = "gfmFootnoteCallLabelMarker";
-  const call = {
-    type: "gfmFootnoteCall",
-    start: Object.assign({}, events[index2 + 3][1].start),
-    end: Object.assign({}, events[events.length - 1][1].end)
-  };
-  const marker = {
-    type: "gfmFootnoteCallMarker",
-    start: Object.assign({}, events[index2 + 3][1].end),
-    end: Object.assign({}, events[index2 + 3][1].end)
-  };
-  marker.end.column++;
-  marker.end.offset++;
-  marker.end._bufferIndex++;
-  const string3 = {
-    type: "gfmFootnoteCallString",
-    start: Object.assign({}, marker.end),
-    end: Object.assign({}, events[events.length - 1][1].start)
-  };
-  const chunk = {
-    type: "chunkString",
-    contentType: "string",
-    start: Object.assign({}, string3.start),
-    end: Object.assign({}, string3.end)
-  };
-  const replacement = [
-    events[index2 + 1],
-    events[index2 + 2],
-    ["enter", call, context],
-    events[index2 + 3],
-    events[index2 + 4],
-    ["enter", marker, context],
-    ["exit", marker, context],
-    ["enter", string3, context],
-    ["enter", chunk, context],
-    ["exit", chunk, context],
-    ["exit", string3, context],
-    events[events.length - 2],
-    events[events.length - 1],
-    ["exit", call, context]
-  ];
-  events.splice(index2, events.length - index2 + 1, ...replacement);
-  return events;
-}
-function tokenizeGfmFootnoteCall(effects, ok2, nok) {
-  const self = this;
-  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
-  let size = 0;
-  let data;
-  return start;
-  function start(code2) {
-    effects.enter("gfmFootnoteCall");
-    effects.enter("gfmFootnoteCallLabelMarker");
-    effects.consume(code2);
-    effects.exit("gfmFootnoteCallLabelMarker");
-    return callStart;
-  }
-  function callStart(code2) {
-    if (code2 !== 94)
-      return nok(code2);
-    effects.enter("gfmFootnoteCallMarker");
-    effects.consume(code2);
-    effects.exit("gfmFootnoteCallMarker");
-    effects.enter("gfmFootnoteCallString");
-    effects.enter("chunkString").contentType = "string";
-    return callData;
-  }
-  function callData(code2) {
-    let token;
-    if (code2 === null || code2 === 91 || size++ > 999) {
-      return nok(code2);
-    }
-    if (code2 === 93) {
-      if (!data) {
-        return nok(code2);
-      }
-      effects.exit("chunkString");
-      token = effects.exit("gfmFootnoteCallString");
-      return defined.includes(normalizeIdentifier(self.sliceSerialize(token))) ? end(code2) : nok(code2);
-    }
-    effects.consume(code2);
-    if (!markdownLineEndingOrSpace(code2)) {
-      data = true;
-    }
-    return code2 === 92 ? callEscape : callData;
-  }
-  function callEscape(code2) {
-    if (code2 === 91 || code2 === 92 || code2 === 93) {
-      effects.consume(code2);
-      size++;
-      return callData;
-    }
-    return callData(code2);
-  }
-  function end(code2) {
-    effects.enter("gfmFootnoteCallLabelMarker");
-    effects.consume(code2);
-    effects.exit("gfmFootnoteCallLabelMarker");
-    effects.exit("gfmFootnoteCall");
-    return ok2;
-  }
-}
-function tokenizeDefinitionStart(effects, ok2, nok) {
-  const self = this;
-  const defined = self.parser.gfmFootnotes || (self.parser.gfmFootnotes = []);
-  let identifier;
-  let size = 0;
-  let data;
-  return start;
-  function start(code2) {
-    effects.enter("gfmFootnoteDefinition")._container = true;
-    effects.enter("gfmFootnoteDefinitionLabel");
-    effects.enter("gfmFootnoteDefinitionLabelMarker");
-    effects.consume(code2);
-    effects.exit("gfmFootnoteDefinitionLabelMarker");
-    return labelStart;
-  }
-  function labelStart(code2) {
-    if (code2 === 94) {
-      effects.enter("gfmFootnoteDefinitionMarker");
-      effects.consume(code2);
-      effects.exit("gfmFootnoteDefinitionMarker");
-      effects.enter("gfmFootnoteDefinitionLabelString");
-      return atBreak;
-    }
-    return nok(code2);
-  }
-  function atBreak(code2) {
-    let token;
-    if (code2 === null || code2 === 91 || size > 999) {
-      return nok(code2);
-    }
-    if (code2 === 93) {
-      if (!data) {
-        return nok(code2);
-      }
-      token = effects.exit("gfmFootnoteDefinitionLabelString");
-      identifier = normalizeIdentifier(self.sliceSerialize(token));
-      effects.enter("gfmFootnoteDefinitionLabelMarker");
-      effects.consume(code2);
-      effects.exit("gfmFootnoteDefinitionLabelMarker");
-      effects.exit("gfmFootnoteDefinitionLabel");
-      return labelAfter;
-    }
-    if (markdownLineEnding(code2)) {
-      effects.enter("lineEnding");
-      effects.consume(code2);
-      effects.exit("lineEnding");
-      size++;
-      return atBreak;
-    }
-    effects.enter("chunkString").contentType = "string";
-    return label(code2);
-  }
-  function label(code2) {
-    if (code2 === null || markdownLineEnding(code2) || code2 === 91 || code2 === 93 || size > 999) {
-      effects.exit("chunkString");
-      return atBreak(code2);
-    }
-    if (!markdownLineEndingOrSpace(code2)) {
-      data = true;
-    }
-    size++;
-    effects.consume(code2);
-    return code2 === 92 ? labelEscape : label;
-  }
-  function labelEscape(code2) {
-    if (code2 === 91 || code2 === 92 || code2 === 93) {
-      effects.consume(code2);
-      size++;
-      return label;
-    }
-    return label(code2);
-  }
-  function labelAfter(code2) {
-    if (code2 === 58) {
-      effects.enter("definitionMarker");
-      effects.consume(code2);
-      effects.exit("definitionMarker");
-      return factorySpace(effects, done, "gfmFootnoteDefinitionWhitespace");
-    }
-    return nok(code2);
-  }
-  function done(code2) {
-    if (!defined.includes(identifier)) {
-      defined.push(identifier);
-    }
-    return ok2(code2);
-  }
-}
-function tokenizeDefinitionContinuation(effects, ok2, nok) {
-  return effects.check(blankLine, ok2, effects.attempt(indent, ok2, nok));
-}
-function gfmFootnoteDefinitionEnd(effects) {
-  effects.exit("gfmFootnoteDefinition");
-}
-function tokenizeIndent2(effects, ok2, nok) {
-  const self = this;
-  return factorySpace(effects, afterPrefix, "gfmFootnoteDefinitionIndent", 4 + 1);
-  function afterPrefix(code2) {
-    const tail = self.events[self.events.length - 1];
-    return tail && tail[1].type === "gfmFootnoteDefinitionIndent" && tail[2].sliceSerialize(tail[1], true).length === 4 ? ok2(code2) : nok(code2);
-  }
-}
-
-// node_modules/mdast-util-gfm-footnote/index.js
-function gfmFootnoteFromMarkdown() {
-  return {
-    enter: {
-      gfmFootnoteDefinition: enterFootnoteDefinition,
-      gfmFootnoteDefinitionLabelString: enterFootnoteDefinitionLabelString,
-      gfmFootnoteCall: enterFootnoteCall,
-      gfmFootnoteCallString: enterFootnoteCallString
-    },
-    exit: {
-      gfmFootnoteDefinition: exitFootnoteDefinition,
-      gfmFootnoteDefinitionLabelString: exitFootnoteDefinitionLabelString,
-      gfmFootnoteCall: exitFootnoteCall,
-      gfmFootnoteCallString: exitFootnoteCallString
-    }
-  };
-  function enterFootnoteDefinition(token) {
-    this.enter({ type: "footnoteDefinition", identifier: "", label: "", children: [] }, token);
-  }
-  function enterFootnoteDefinitionLabelString() {
-    this.buffer();
-  }
-  function exitFootnoteDefinitionLabelString(token) {
-    const label = this.resume();
-    const node = this.stack[this.stack.length - 1];
-    node.label = label;
-    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
-  }
-  function exitFootnoteDefinition(token) {
-    this.exit(token);
-  }
-  function enterFootnoteCall(token) {
-    this.enter({ type: "footnoteReference", identifier: "", label: "" }, token);
-  }
-  function enterFootnoteCallString() {
-    this.buffer();
-  }
-  function exitFootnoteCallString(token) {
-    const label = this.resume();
-    const node = this.stack[this.stack.length - 1];
-    node.label = label;
-    node.identifier = normalizeIdentifier(this.sliceSerialize(token)).toLowerCase();
-  }
-  function exitFootnoteCall(token) {
-    this.exit(token);
-  }
-}
-
-// node_modules/micromark-extension-gfm-autolink-literal/lib/syntax.js
-var www = {
-  tokenize: tokenizeWww,
-  partial: true
-};
-var domain = {
-  tokenize: tokenizeDomain,
-  partial: true
-};
-var path = {
-  tokenize: tokenizePath,
-  partial: true
-};
-var punctuation = {
-  tokenize: tokenizePunctuation,
-  partial: true
-};
-var namedCharacterReference = {
-  tokenize: tokenizeNamedCharacterReference,
-  partial: true
-};
-var wwwAutolink = {
-  tokenize: tokenizeWwwAutolink,
-  previous: previousWww
-};
-var httpAutolink = {
-  tokenize: tokenizeHttpAutolink,
-  previous: previousHttp
-};
-var emailAutolink = {
-  tokenize: tokenizeEmailAutolink,
-  previous: previousEmail
-};
-var text3 = {};
-var gfmAutolinkLiteral = {
-  text: text3
-};
-var code = 48;
-while (code < 123) {
-  text3[code] = emailAutolink;
-  code++;
-  if (code === 58)
-    code = 65;
-  else if (code === 91)
-    code = 97;
-}
-text3[43] = emailAutolink;
-text3[45] = emailAutolink;
-text3[46] = emailAutolink;
-text3[95] = emailAutolink;
-text3[72] = [emailAutolink, httpAutolink];
-text3[104] = [emailAutolink, httpAutolink];
-text3[87] = [emailAutolink, wwwAutolink];
-text3[119] = [emailAutolink, wwwAutolink];
-function tokenizeEmailAutolink(effects, ok2, nok) {
-  const self = this;
-  let hasDot;
-  let hasDigitInLastSegment;
-  return start;
-  function start(code2) {
-    if (!gfmAtext(code2) || !previousEmail(self.previous) || previousUnbalanced(self.events)) {
-      return nok(code2);
-    }
-    effects.enter("literalAutolink");
-    effects.enter("literalAutolinkEmail");
-    return atext(code2);
-  }
-  function atext(code2) {
-    if (gfmAtext(code2)) {
-      effects.consume(code2);
-      return atext;
-    }
-    if (code2 === 64) {
-      effects.consume(code2);
-      return label;
-    }
-    return nok(code2);
-  }
-  function label(code2) {
-    if (code2 === 46) {
-      return effects.check(punctuation, done, dotContinuation)(code2);
-    }
-    if (code2 === 45 || code2 === 95) {
-      return effects.check(punctuation, nok, dashOrUnderscoreContinuation)(code2);
-    }
-    if (asciiAlphanumeric(code2)) {
-      if (!hasDigitInLastSegment && asciiDigit(code2)) {
-        hasDigitInLastSegment = true;
-      }
-      effects.consume(code2);
-      return label;
-    }
-    return done(code2);
-  }
-  function dotContinuation(code2) {
-    effects.consume(code2);
-    hasDot = true;
-    hasDigitInLastSegment = void 0;
-    return label;
-  }
-  function dashOrUnderscoreContinuation(code2) {
-    effects.consume(code2);
-    return afterDashOrUnderscore;
-  }
-  function afterDashOrUnderscore(code2) {
-    if (code2 === 46) {
-      return effects.check(punctuation, nok, dotContinuation)(code2);
-    }
-    return label(code2);
-  }
-  function done(code2) {
-    if (hasDot && !hasDigitInLastSegment) {
-      effects.exit("literalAutolinkEmail");
-      effects.exit("literalAutolink");
-      return ok2(code2);
-    }
-    return nok(code2);
-  }
-}
-function tokenizeWwwAutolink(effects, ok2, nok) {
-  const self = this;
-  return start;
-  function start(code2) {
-    if (code2 !== 87 && code2 !== 119 || !previousWww(self.previous) || previousUnbalanced(self.events)) {
-      return nok(code2);
-    }
-    effects.enter("literalAutolink");
-    effects.enter("literalAutolinkWww");
-    return effects.check(www, effects.attempt(domain, effects.attempt(path, done), nok), nok)(code2);
-  }
-  function done(code2) {
-    effects.exit("literalAutolinkWww");
-    effects.exit("literalAutolink");
-    return ok2(code2);
-  }
-}
-function tokenizeHttpAutolink(effects, ok2, nok) {
-  const self = this;
-  return start;
-  function start(code2) {
-    if (code2 !== 72 && code2 !== 104 || !previousHttp(self.previous) || previousUnbalanced(self.events)) {
-      return nok(code2);
-    }
-    effects.enter("literalAutolink");
-    effects.enter("literalAutolinkHttp");
-    effects.consume(code2);
-    return t1;
-  }
-  function t1(code2) {
-    if (code2 === 84 || code2 === 116) {
-      effects.consume(code2);
-      return t2;
-    }
-    return nok(code2);
-  }
-  function t2(code2) {
-    if (code2 === 84 || code2 === 116) {
-      effects.consume(code2);
-      return p;
-    }
-    return nok(code2);
-  }
-  function p(code2) {
-    if (code2 === 80 || code2 === 112) {
-      effects.consume(code2);
-      return s;
-    }
-    return nok(code2);
-  }
-  function s(code2) {
-    if (code2 === 83 || code2 === 115) {
-      effects.consume(code2);
-      return colon;
-    }
-    return colon(code2);
-  }
-  function colon(code2) {
-    if (code2 === 58) {
-      effects.consume(code2);
-      return slash1;
-    }
-    return nok(code2);
-  }
-  function slash1(code2) {
-    if (code2 === 47) {
-      effects.consume(code2);
-      return slash2;
-    }
-    return nok(code2);
-  }
-  function slash2(code2) {
-    if (code2 === 47) {
-      effects.consume(code2);
-      return after;
-    }
-    return nok(code2);
-  }
-  function after(code2) {
-    return code2 === null || asciiControl(code2) || unicodeWhitespace(code2) || unicodePunctuation(code2) ? nok(code2) : effects.attempt(domain, effects.attempt(path, done), nok)(code2);
-  }
-  function done(code2) {
-    effects.exit("literalAutolinkHttp");
-    effects.exit("literalAutolink");
-    return ok2(code2);
-  }
-}
-function tokenizeWww(effects, ok2, nok) {
-  return start;
-  function start(code2) {
-    effects.consume(code2);
-    return w2;
-  }
-  function w2(code2) {
-    if (code2 === 87 || code2 === 119) {
-      effects.consume(code2);
-      return w3;
-    }
-    return nok(code2);
-  }
-  function w3(code2) {
-    if (code2 === 87 || code2 === 119) {
-      effects.consume(code2);
-      return dot;
-    }
-    return nok(code2);
-  }
-  function dot(code2) {
-    if (code2 === 46) {
-      effects.consume(code2);
-      return after;
-    }
-    return nok(code2);
-  }
-  function after(code2) {
-    return code2 === null || markdownLineEnding(code2) ? nok(code2) : ok2(code2);
-  }
-}
-function tokenizeDomain(effects, ok2, nok) {
-  let hasUnderscoreInLastSegment;
-  let hasUnderscoreInLastLastSegment;
-  return domain2;
-  function domain2(code2) {
-    if (code2 === 38) {
-      return effects.check(namedCharacterReference, done, punctuationContinuation)(code2);
-    }
-    if (code2 === 46 || code2 === 95) {
-      return effects.check(punctuation, done, punctuationContinuation)(code2);
-    }
-    if (code2 === null || asciiControl(code2) || unicodeWhitespace(code2) || code2 !== 45 && unicodePunctuation(code2)) {
-      return done(code2);
-    }
-    effects.consume(code2);
-    return domain2;
-  }
-  function punctuationContinuation(code2) {
-    if (code2 === 46) {
-      hasUnderscoreInLastLastSegment = hasUnderscoreInLastSegment;
-      hasUnderscoreInLastSegment = void 0;
-      effects.consume(code2);
-      return domain2;
-    }
-    if (code2 === 95)
-      hasUnderscoreInLastSegment = true;
-    effects.consume(code2);
-    return domain2;
-  }
-  function done(code2) {
-    if (!hasUnderscoreInLastLastSegment && !hasUnderscoreInLastSegment) {
-      return ok2(code2);
-    }
-    return nok(code2);
-  }
-}
-function tokenizePath(effects, ok2) {
-  let balance = 0;
-  return inPath;
-  function inPath(code2) {
-    if (code2 === 38) {
-      return effects.check(namedCharacterReference, ok2, continuedPunctuation)(code2);
-    }
-    if (code2 === 40) {
-      balance++;
-    }
-    if (code2 === 41) {
-      return effects.check(punctuation, parenAtPathEnd, continuedPunctuation)(code2);
-    }
-    if (pathEnd(code2)) {
-      return ok2(code2);
-    }
-    if (trailingPunctuation(code2)) {
-      return effects.check(punctuation, ok2, continuedPunctuation)(code2);
-    }
-    effects.consume(code2);
-    return inPath;
-  }
-  function continuedPunctuation(code2) {
-    effects.consume(code2);
-    return inPath;
-  }
-  function parenAtPathEnd(code2) {
-    balance--;
-    return balance < 0 ? ok2(code2) : continuedPunctuation(code2);
-  }
-}
-function tokenizeNamedCharacterReference(effects, ok2, nok) {
-  return start;
-  function start(code2) {
-    effects.consume(code2);
+    effects.exit("taskListCheckMarker");
     return inside;
   }
   function inside(code2) {
-    if (asciiAlpha(code2)) {
+    if (markdownLineEndingOrSpace(code2)) {
+      effects.enter("taskListCheckValueUnchecked");
       effects.consume(code2);
-      return inside;
+      effects.exit("taskListCheckValueUnchecked");
+      return close2;
     }
-    if (code2 === 59) {
+    if (code2 === 88 || code2 === 120) {
+      effects.enter("taskListCheckValueChecked");
       effects.consume(code2);
-      return after;
+      effects.exit("taskListCheckValueChecked");
+      return close2;
     }
     return nok(code2);
   }
-  function after(code2) {
-    return pathEnd(code2) ? ok2(code2) : nok(code2);
-  }
-}
-function tokenizePunctuation(effects, ok2, nok) {
-  return start;
-  function start(code2) {
-    effects.consume(code2);
-    return after;
-  }
-  function after(code2) {
-    if (trailingPunctuation(code2)) {
+  function close2(code2) {
+    if (code2 === 93) {
+      effects.enter("taskListCheckMarker");
       effects.consume(code2);
-      return after;
+      effects.exit("taskListCheckMarker");
+      effects.exit("taskListCheck");
+      return effects.check({
+        tokenize: spaceThenNonSpace
+      }, ok2, nok);
     }
-    return pathEnd(code2) ? ok2(code2) : nok(code2);
+    return nok(code2);
   }
 }
-function trailingPunctuation(code2) {
-  return code2 === 33 || code2 === 34 || code2 === 39 || code2 === 41 || code2 === 42 || code2 === 44 || code2 === 46 || code2 === 58 || code2 === 59 || code2 === 60 || code2 === 63 || code2 === 95 || code2 === 126;
-}
-function pathEnd(code2) {
-  return code2 === null || code2 === 60 || markdownLineEndingOrSpace(code2);
-}
-function gfmAtext(code2) {
-  return code2 === 43 || code2 === 45 || code2 === 46 || code2 === 95 || asciiAlphanumeric(code2);
-}
-function previousWww(code2) {
-  return code2 === null || code2 === 40 || code2 === 42 || code2 === 95 || code2 === 126 || markdownLineEndingOrSpace(code2);
-}
-function previousHttp(code2) {
-  return code2 === null || !asciiAlpha(code2);
-}
-function previousEmail(code2) {
-  return code2 !== 47 && previousHttp(code2);
-}
-function previousUnbalanced(events) {
-  let index2 = events.length;
-  let result = false;
-  while (index2--) {
-    const token = events[index2][1];
-    if ((token.type === "labelLink" || token.type === "labelImage") && !token._balanced) {
-      result = true;
-      break;
-    }
-    if (token._gfmAutolinkLiteralWalkedInto) {
-      result = false;
-      break;
-    }
+function spaceThenNonSpace(effects, ok2, nok) {
+  const self = this;
+  return factorySpace(effects, after, "whitespace");
+  function after(code2) {
+    const tail = self.events[self.events.length - 1];
+    return (tail && tail[1].type === "whitespace" || markdownLineEnding(code2)) && code2 !== null ? ok2(code2) : nok(code2);
   }
-  if (events.length > 0 && !result) {
-    events[events.length - 1][1]._gfmAutolinkLiteralWalkedInto = true;
-  }
-  return result;
-}
-
-// node_modules/ccount/index.js
-function ccount(value2, character) {
-  const source = String(value2);
-  if (typeof character !== "string") {
-    throw new TypeError("Expected character");
-  }
-  let count = 0;
-  let index2 = source.indexOf(character);
-  while (index2 !== -1) {
-    count++;
-    index2 = source.indexOf(character, index2 + character.length);
-  }
-  return count;
-}
-
-// node_modules/mdast-util-find-and-replace/node_modules/escape-string-regexp/index.js
-function escapeStringRegexp(string3) {
-  if (typeof string3 !== "string") {
-    throw new TypeError("Expected a string");
-  }
-  return string3.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&").replace(/-/g, "\\x2d");
-}
-
-// node_modules/unist-util-is/index.js
-var convert = function(test) {
-  if (test === void 0 || test === null) {
-    return ok;
-  }
-  if (typeof test === "string") {
-    return typeFactory(test);
-  }
-  if (typeof test === "object") {
-    return Array.isArray(test) ? anyFactory(test) : propsFactory(test);
-  }
-  if (typeof test === "function") {
-    return castFactory(test);
-  }
-  throw new Error("Expected function, string, or object as test");
-};
-function anyFactory(tests) {
-  const checks = [];
-  let index2 = -1;
-  while (++index2 < tests.length) {
-    checks[index2] = convert(tests[index2]);
-  }
-  return castFactory(any);
-  function any(...parameters) {
-    let index3 = -1;
-    while (++index3 < checks.length) {
-      if (checks[index3].call(this, ...parameters))
-        return true;
-    }
-    return false;
-  }
-}
-function propsFactory(check) {
-  return castFactory(all2);
-  function all2(node) {
-    let key;
-    for (key in check) {
-      if (node[key] !== check[key])
-        return false;
-    }
-    return true;
-  }
-}
-function typeFactory(check) {
-  return castFactory(type);
-  function type(node) {
-    return node && node.type === check;
-  }
-}
-function castFactory(check) {
-  return assertion;
-  function assertion(...parameters) {
-    return Boolean(check.call(this, ...parameters));
-  }
-}
-function ok() {
-  return true;
-}
-
-// node_modules/unist-util-visit-parents/color.browser.js
-function color(d) {
-  return d;
-}
-
-// node_modules/unist-util-visit-parents/index.js
-var CONTINUE = true;
-var SKIP = "skip";
-var EXIT = false;
-var visitParents = function(tree, test, visitor, reverse) {
-  if (typeof test === "function" && typeof visitor !== "function") {
-    reverse = visitor;
-    visitor = test;
-    test = null;
-  }
-  const is = convert(test);
-  const step = reverse ? -1 : 1;
-  factory(tree, null, [])();
-  function factory(node, index2, parents) {
-    const value2 = typeof node === "object" && node !== null ? node : {};
-    let name;
-    if (typeof value2.type === "string") {
-      name = typeof value2.tagName === "string" ? value2.tagName : typeof value2.name === "string" ? value2.name : void 0;
-      Object.defineProperty(visit, "name", {
-        value: "node (" + color(value2.type + (name ? "<" + name + ">" : "")) + ")"
-      });
-    }
-    return visit;
-    function visit() {
-      let result = [];
-      let subresult;
-      let offset;
-      let grandparents;
-      if (!test || is(node, index2, parents[parents.length - 1] || null)) {
-        result = toResult(visitor(node, parents));
-        if (result[0] === EXIT) {
-          return result;
-        }
-      }
-      if (node.children && result[0] !== SKIP) {
-        offset = (reverse ? node.children.length : -1) + step;
-        grandparents = parents.concat(node);
-        while (offset > -1 && offset < node.children.length) {
-          subresult = factory(node.children[offset], offset, grandparents)();
-          if (subresult[0] === EXIT) {
-            return subresult;
-          }
-          offset = typeof subresult[1] === "number" ? subresult[1] : offset + step;
-        }
-      }
-      return result;
-    }
-  }
-};
-function toResult(value2) {
-  if (Array.isArray(value2)) {
-    return value2;
-  }
-  if (typeof value2 === "number") {
-    return [CONTINUE, value2];
-  }
-  return [value2];
-}
-
-// node_modules/mdast-util-find-and-replace/lib/index.js
-var own2 = {}.hasOwnProperty;
-var findAndReplace = function(tree, find, replace2, options) {
-  let settings;
-  let schema;
-  if (typeof find === "string" || find instanceof RegExp) {
-    schema = [[find, replace2]];
-    settings = options;
-  } else {
-    schema = find;
-    settings = replace2;
-  }
-  if (!settings) {
-    settings = {};
-  }
-  const ignored = convert(settings.ignore || []);
-  const pairs = toPairs(schema);
-  let pairIndex = -1;
-  while (++pairIndex < pairs.length) {
-    visitParents(tree, "text", visitor);
-  }
-  return tree;
-  function visitor(node, parents) {
-    let index2 = -1;
-    let grandparent;
-    while (++index2 < parents.length) {
-      const parent = parents[index2];
-      if (ignored(parent, grandparent ? grandparent.children.indexOf(parent) : void 0, grandparent)) {
-        return;
-      }
-      grandparent = parent;
-    }
-    if (grandparent) {
-      return handler(node, parents);
-    }
-  }
-  function handler(node, parents) {
-    const parent = parents[parents.length - 1];
-    const find2 = pairs[pairIndex][0];
-    const replace3 = pairs[pairIndex][1];
-    let start = 0;
-    const index2 = parent.children.indexOf(node);
-    let change = false;
-    let nodes = [];
-    let position2;
-    find2.lastIndex = 0;
-    let match = find2.exec(node.value);
-    while (match) {
-      position2 = match.index;
-      const matchObject = {
-        index: match.index,
-        input: match.input,
-        stack: [...parents, node]
-      };
-      let value2 = replace3(...match, matchObject);
-      if (typeof value2 === "string") {
-        value2 = value2.length > 0 ? { type: "text", value: value2 } : void 0;
-      }
-      if (value2 !== false) {
-        if (start !== position2) {
-          nodes.push({
-            type: "text",
-            value: node.value.slice(start, position2)
-          });
-        }
-        if (Array.isArray(value2)) {
-          nodes.push(...value2);
-        } else if (value2) {
-          nodes.push(value2);
-        }
-        start = position2 + match[0].length;
-        change = true;
-      }
-      if (!find2.global) {
-        break;
-      }
-      match = find2.exec(node.value);
-    }
-    if (change) {
-      if (start < node.value.length) {
-        nodes.push({ type: "text", value: node.value.slice(start) });
-      }
-      parent.children.splice(index2, 1, ...nodes);
-    } else {
-      nodes = [node];
-    }
-    return index2 + nodes.length;
-  }
-};
-function toPairs(schema) {
-  const result = [];
-  if (typeof schema !== "object") {
-    throw new TypeError("Expected array or object as schema");
-  }
-  if (Array.isArray(schema)) {
-    let index2 = -1;
-    while (++index2 < schema.length) {
-      result.push([
-        toExpression(schema[index2][0]),
-        toFunction(schema[index2][1])
-      ]);
-    }
-  } else {
-    let key;
-    for (key in schema) {
-      if (own2.call(schema, key)) {
-        result.push([toExpression(key), toFunction(schema[key])]);
-      }
-    }
-  }
-  return result;
-}
-function toExpression(find) {
-  return typeof find === "string" ? new RegExp(escapeStringRegexp(find), "g") : find;
-}
-function toFunction(replace2) {
-  return typeof replace2 === "function" ? replace2 : () => replace2;
-}
-
-// node_modules/mdast-util-gfm-autolink-literal/index.js
-var gfmAutolinkLiteralFromMarkdown = {
-  transforms: [transformGfmAutolinkLiterals],
-  enter: {
-    literalAutolink: enterLiteralAutolink,
-    literalAutolinkEmail: enterLiteralAutolinkValue,
-    literalAutolinkHttp: enterLiteralAutolinkValue,
-    literalAutolinkWww: enterLiteralAutolinkValue
-  },
-  exit: {
-    literalAutolink: exitLiteralAutolink,
-    literalAutolinkEmail: exitLiteralAutolinkEmail,
-    literalAutolinkHttp: exitLiteralAutolinkHttp,
-    literalAutolinkWww: exitLiteralAutolinkWww
-  }
-};
-function enterLiteralAutolink(token) {
-  this.enter({ type: "link", title: null, url: "", children: [] }, token);
-}
-function enterLiteralAutolinkValue(token) {
-  this.config.enter.autolinkProtocol.call(this, token);
-}
-function exitLiteralAutolinkHttp(token) {
-  this.config.exit.autolinkProtocol.call(this, token);
-}
-function exitLiteralAutolinkWww(token) {
-  this.config.exit.data.call(this, token);
-  const node = this.stack[this.stack.length - 1];
-  node.url = "http://" + this.sliceSerialize(token);
-}
-function exitLiteralAutolinkEmail(token) {
-  this.config.exit.autolinkEmail.call(this, token);
-}
-function exitLiteralAutolink(token) {
-  this.exit(token);
-}
-function transformGfmAutolinkLiterals(tree) {
-  findAndReplace(tree, [
-    [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
-    [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
-  ], { ignore: ["link", "linkReference"] });
-}
-function findUrl(_, protocol, domain2, path2, match) {
-  let prefix = "";
-  if (!previous3(match)) {
-    return false;
-  }
-  if (/^w/i.test(protocol)) {
-    domain2 = protocol + domain2;
-    protocol = "";
-    prefix = "http://";
-  }
-  if (!isCorrectDomain(domain2)) {
-    return false;
-  }
-  const parts = splitUrl(domain2 + path2);
-  if (!parts[0])
-    return false;
-  const result = {
-    type: "link",
-    title: null,
-    url: prefix + protocol + parts[0],
-    children: [{ type: "text", value: protocol + parts[0] }]
-  };
-  if (parts[1]) {
-    return [result, { type: "text", value: parts[1] }];
-  }
-  return result;
-}
-function findEmail(_, atext, label, match) {
-  if (!previous3(match, true) || /[_-\d]$/.test(label)) {
-    return false;
-  }
-  return {
-    type: "link",
-    title: null,
-    url: "mailto:" + atext + "@" + label,
-    children: [{ type: "text", value: atext + "@" + label }]
-  };
-}
-function isCorrectDomain(domain2) {
-  const parts = domain2.split(".");
-  if (parts.length < 2 || parts[parts.length - 1] && (/_/.test(parts[parts.length - 1]) || !/[a-zA-Z\d]/.test(parts[parts.length - 1])) || parts[parts.length - 2] && (/_/.test(parts[parts.length - 2]) || !/[a-zA-Z\d]/.test(parts[parts.length - 2]))) {
-    return false;
-  }
-  return true;
-}
-function splitUrl(url) {
-  const trailExec = /[!"&'),.:;<>?\]}]+$/.exec(url);
-  let closingParenIndex;
-  let openingParens;
-  let closingParens;
-  let trail;
-  if (trailExec) {
-    url = url.slice(0, trailExec.index);
-    trail = trailExec[0];
-    closingParenIndex = trail.indexOf(")");
-    openingParens = ccount(url, "(");
-    closingParens = ccount(url, ")");
-    while (closingParenIndex !== -1 && openingParens > closingParens) {
-      url += trail.slice(0, closingParenIndex + 1);
-      trail = trail.slice(closingParenIndex + 1);
-      closingParenIndex = trail.indexOf(")");
-      closingParens++;
-    }
-  }
-  return [url, trail];
-}
-function previous3(match, email) {
-  const code2 = match.input.charCodeAt(match.index - 1);
-  return (match.index === 0 || unicodeWhitespace(code2) || unicodePunctuation(code2)) && (!email || code2 !== 47);
 }
 
 // node_modules/micromark-extension-gfm/index.js
@@ -24739,233 +24731,260 @@ function gfm(options) {
   ]);
 }
 
-// node_modules/mdast-util-gfm/lib/index.js
-function gfmFromMarkdown() {
-  return [
-    gfmAutolinkLiteralFromMarkdown,
-    gfmFootnoteFromMarkdown(),
-    gfmStrikethroughFromMarkdown,
-    gfmTableFromMarkdown,
-    gfmTaskListItemFromMarkdown
-  ];
-}
-
-// node_modules/fault/index.js
-var import_format = __toESM(require_format(), 1);
-var fault = Object.assign(create(Error), {
-  eval: create(EvalError),
-  range: create(RangeError),
-  reference: create(ReferenceError),
-  syntax: create(SyntaxError),
-  type: create(TypeError),
-  uri: create(URIError)
-});
-function create(Constructor) {
-  FormattedError.displayName = Constructor.displayName || Constructor.name;
-  return FormattedError;
-  function FormattedError(format, ...values) {
-    const reason = format ? (0, import_format.default)(format, ...values) : format;
-    return new Constructor(reason);
-  }
-}
-
-// node_modules/micromark-extension-frontmatter/matters.js
-var own3 = {}.hasOwnProperty;
-var markers = {
-  yaml: "-",
-  toml: "+"
+// node_modules/micromark-extension-math/lib/math-flow.js
+var mathFlow = {
+  tokenize: tokenizeMathFenced,
+  concrete: true
 };
-function matters(options = "yaml") {
-  const results = [];
-  let index2 = -1;
-  if (!Array.isArray(options)) {
-    options = [options];
+var nonLazyLine = {
+  tokenize: tokenizeNonLazyLine,
+  partial: true
+};
+function tokenizeMathFenced(effects, ok2, nok) {
+  const self = this;
+  const tail = self.events[self.events.length - 1];
+  const initialSize = tail && tail[1].type === "linePrefix" ? tail[2].sliceSerialize(tail[1], true).length : 0;
+  let sizeOpen = 0;
+  return start;
+  function start(code2) {
+    effects.enter("mathFlow");
+    effects.enter("mathFlowFence");
+    effects.enter("mathFlowFenceSequence");
+    return sequenceOpen(code2);
   }
-  while (++index2 < options.length) {
-    results[index2] = matter(options[index2]);
-  }
-  return results;
-}
-function matter(option) {
-  let result = option;
-  if (typeof result === "string") {
-    if (!own3.call(markers, result)) {
-      throw fault("Missing matter definition for `%s`", result);
+  function sequenceOpen(code2) {
+    if (code2 === 36) {
+      effects.consume(code2);
+      sizeOpen++;
+      return sequenceOpen;
     }
-    result = {
-      type: result,
-      marker: markers[result]
-    };
-  } else if (typeof result !== "object") {
-    throw fault("Expected matter to be an object, not `%j`", result);
+    effects.exit("mathFlowFenceSequence");
+    return sizeOpen < 2 ? nok(code2) : factorySpace(effects, metaOpen, "whitespace")(code2);
   }
-  if (!own3.call(result, "type")) {
-    throw fault("Missing `type` in matter `%j`", result);
+  function metaOpen(code2) {
+    if (code2 === null || markdownLineEnding(code2)) {
+      return openAfter(code2);
+    }
+    effects.enter("mathFlowFenceMeta");
+    effects.enter("chunkString", {
+      contentType: "string"
+    });
+    return meta(code2);
   }
-  if (!own3.call(result, "fence") && !own3.call(result, "marker")) {
-    throw fault("Missing `marker` or `fence` in matter `%j`", result);
+  function meta(code2) {
+    if (code2 === null || markdownLineEnding(code2)) {
+      effects.exit("chunkString");
+      effects.exit("mathFlowFenceMeta");
+      return openAfter(code2);
+    }
+    if (code2 === 36)
+      return nok(code2);
+    effects.consume(code2);
+    return meta;
   }
-  return result;
+  function openAfter(code2) {
+    effects.exit("mathFlowFence");
+    return self.interrupt ? ok2(code2) : contentStart(code2);
+  }
+  function contentStart(code2) {
+    if (code2 === null) {
+      return after(code2);
+    }
+    if (markdownLineEnding(code2)) {
+      return effects.attempt(nonLazyLine, effects.attempt({
+        tokenize: tokenizeClosingFence,
+        partial: true
+      }, after, initialSize ? factorySpace(effects, contentStart, "linePrefix", initialSize + 1) : contentStart), after)(code2);
+    }
+    effects.enter("mathFlowValue");
+    return contentContinue(code2);
+  }
+  function contentContinue(code2) {
+    if (code2 === null || markdownLineEnding(code2)) {
+      effects.exit("mathFlowValue");
+      return contentStart(code2);
+    }
+    effects.consume(code2);
+    return contentContinue;
+  }
+  function after(code2) {
+    effects.exit("mathFlow");
+    return ok2(code2);
+  }
+  function tokenizeClosingFence(effects2, ok3, nok2) {
+    let size = 0;
+    return factorySpace(effects2, closingPrefixAfter, "linePrefix", 4);
+    function closingPrefixAfter(code2) {
+      effects2.enter("mathFlowFence");
+      effects2.enter("mathFlowFenceSequence");
+      return closingSequence(code2);
+    }
+    function closingSequence(code2) {
+      if (code2 === 36) {
+        effects2.consume(code2);
+        size++;
+        return closingSequence;
+      }
+      if (size < sizeOpen)
+        return nok2(code2);
+      effects2.exit("mathFlowFenceSequence");
+      return factorySpace(effects2, closingSequenceEnd, "whitespace")(code2);
+    }
+    function closingSequenceEnd(code2) {
+      if (code2 === null || markdownLineEnding(code2)) {
+        effects2.exit("mathFlowFence");
+        return ok3(code2);
+      }
+      return nok2(code2);
+    }
+  }
+}
+function tokenizeNonLazyLine(effects, ok2, nok) {
+  const self = this;
+  return start;
+  function start(code2) {
+    effects.enter("lineEnding");
+    effects.consume(code2);
+    effects.exit("lineEnding");
+    return lineStart;
+  }
+  function lineStart(code2) {
+    return self.parser.lazy[self.now().line] ? nok(code2) : ok2(code2);
+  }
 }
 
-// node_modules/micromark-extension-frontmatter/lib/syntax.js
-function frontmatter(options) {
-  const settings = matters(options);
-  const flow3 = {};
-  let index2 = -1;
-  let matter2;
-  let code2;
-  while (++index2 < settings.length) {
-    matter2 = settings[index2];
-    code2 = fence(matter2, "open").charCodeAt(0);
-    if (code2 in flow3) {
-      flow3[code2].push(parse2(matter2));
-    } else {
-      flow3[code2] = [parse2(matter2)];
-    }
+// node_modules/micromark-extension-math/lib/math-text.js
+function mathText(options = {}) {
+  let single = options.singleDollarTextMath;
+  if (single === null || single === void 0) {
+    single = true;
   }
   return {
-    flow: flow3
+    tokenize: tokenizeMathText,
+    resolve: resolveMathText,
+    previous: previous3
   };
-}
-function parse2(matter2) {
-  const name = matter2.type;
-  const anywhere = matter2.anywhere;
-  const valueType = name + "Value";
-  const fenceType = name + "Fence";
-  const sequenceType = fenceType + "Sequence";
-  const fenceConstruct = {
-    tokenize: tokenizeFence,
-    partial: true
-  };
-  let buffer;
-  return {
-    tokenize: tokenizeFrontmatter,
-    concrete: true
-  };
-  function tokenizeFrontmatter(effects, ok2, nok) {
+  function tokenizeMathText(effects, ok2, nok) {
     const self = this;
+    let sizeOpen = 0;
+    let size;
+    let token;
     return start;
     function start(code2) {
-      const position2 = self.now();
-      if (position2.column !== 1 || !anywhere && position2.line !== 1) {
+      effects.enter("mathText");
+      effects.enter("mathTextSequence");
+      return openingSequence(code2);
+    }
+    function openingSequence(code2) {
+      if (code2 === 36) {
+        effects.consume(code2);
+        sizeOpen++;
+        return openingSequence;
+      }
+      if (sizeOpen < 2 && !single)
         return nok(code2);
-      }
-      effects.enter(name);
-      buffer = fence(matter2, "open");
-      return effects.attempt(fenceConstruct, afterOpeningFence, nok)(code2);
+      effects.exit("mathTextSequence");
+      return gap(code2);
     }
-    function afterOpeningFence(code2) {
-      buffer = fence(matter2, "close");
-      return lineEnd(code2);
-    }
-    function lineStart(code2) {
-      if (code2 === null || markdownLineEnding(code2)) {
-        return lineEnd(code2);
-      }
-      effects.enter(valueType);
-      return lineData(code2);
-    }
-    function lineData(code2) {
-      if (code2 === null || markdownLineEnding(code2)) {
-        effects.exit(valueType);
-        return lineEnd(code2);
-      }
-      effects.consume(code2);
-      return lineData;
-    }
-    function lineEnd(code2) {
+    function gap(code2) {
       if (code2 === null) {
         return nok(code2);
       }
-      effects.enter("lineEnding");
+      if (code2 === 36) {
+        token = effects.enter("mathTextSequence");
+        size = 0;
+        return closingSequence(code2);
+      }
+      if (code2 === 32) {
+        effects.enter("space");
+        effects.consume(code2);
+        effects.exit("space");
+        return gap;
+      }
+      if (markdownLineEnding(code2)) {
+        effects.enter("lineEnding");
+        effects.consume(code2);
+        effects.exit("lineEnding");
+        return gap;
+      }
+      effects.enter("mathTextData");
+      return data(code2);
+    }
+    function data(code2) {
+      if (code2 === null || code2 === 32 || code2 === 36 || markdownLineEnding(code2)) {
+        effects.exit("mathTextData");
+        return gap(code2);
+      }
       effects.consume(code2);
-      effects.exit("lineEnding");
-      return effects.attempt(fenceConstruct, after, lineStart);
+      return data;
     }
-    function after(code2) {
-      effects.exit(name);
-      return ok2(code2);
-    }
-  }
-  function tokenizeFence(effects, ok2, nok) {
-    let bufferIndex = 0;
-    return start;
-    function start(code2) {
-      if (code2 === buffer.charCodeAt(bufferIndex)) {
-        effects.enter(fenceType);
-        effects.enter(sequenceType);
-        return insideSequence(code2);
-      }
-      return nok(code2);
-    }
-    function insideSequence(code2) {
-      if (bufferIndex === buffer.length) {
-        effects.exit(sequenceType);
-        if (markdownSpace(code2)) {
-          effects.enter("whitespace");
-          return insideWhitespace(code2);
-        }
-        return fenceEnd(code2);
-      }
-      if (code2 === buffer.charCodeAt(bufferIndex++)) {
+    function closingSequence(code2) {
+      if (code2 === 36) {
         effects.consume(code2);
-        return insideSequence;
+        size++;
+        return closingSequence;
       }
-      return nok(code2);
-    }
-    function insideWhitespace(code2) {
-      if (markdownSpace(code2)) {
-        effects.consume(code2);
-        return insideWhitespace;
-      }
-      effects.exit("whitespace");
-      return fenceEnd(code2);
-    }
-    function fenceEnd(code2) {
-      if (code2 === null || markdownLineEnding(code2)) {
-        effects.exit(fenceType);
+      if (size === sizeOpen) {
+        effects.exit("mathTextSequence");
+        effects.exit("mathText");
         return ok2(code2);
       }
-      return nok(code2);
+      token.type = "mathTextData";
+      return data(code2);
     }
   }
 }
-function fence(matter2, prop) {
-  return matter2.marker ? pick(matter2.marker, prop).repeat(3) : pick(matter2.fence, prop);
+function resolveMathText(events) {
+  let tailExitIndex = events.length - 4;
+  let headEnterIndex = 3;
+  let index2;
+  let enter;
+  if ((events[headEnterIndex][1].type === "lineEnding" || events[headEnterIndex][1].type === "space") && (events[tailExitIndex][1].type === "lineEnding" || events[tailExitIndex][1].type === "space")) {
+    index2 = headEnterIndex;
+    while (++index2 < tailExitIndex) {
+      if (events[index2][1].type === "mathTextData") {
+        events[tailExitIndex][1].type = "mathTextPadding";
+        events[headEnterIndex][1].type = "mathTextPadding";
+        headEnterIndex += 2;
+        tailExitIndex -= 2;
+        break;
+      }
+    }
+  }
+  index2 = headEnterIndex - 1;
+  tailExitIndex++;
+  while (++index2 <= tailExitIndex) {
+    if (enter === void 0) {
+      if (index2 !== tailExitIndex && events[index2][1].type !== "lineEnding") {
+        enter = index2;
+      }
+    } else if (index2 === tailExitIndex || events[index2][1].type === "lineEnding") {
+      events[enter][1].type = "mathTextData";
+      if (index2 !== enter + 2) {
+        events[enter][1].end = events[index2 - 1][1].end;
+        events.splice(enter + 2, index2 - enter - 2);
+        tailExitIndex -= index2 - enter - 2;
+        index2 = enter + 2;
+      }
+      enter = void 0;
+    }
+  }
+  return events;
 }
-function pick(schema, prop) {
-  return typeof schema === "string" ? schema : schema[prop];
+function previous3(code2) {
+  return code2 !== 36 || this.events[this.events.length - 1][1].type === "characterEscape";
 }
 
-// node_modules/mdast-util-frontmatter/index.js
-function frontmatterFromMarkdown(options) {
-  const settings = matters(options);
-  const enter = {};
-  const exit3 = {};
-  let index2 = -1;
-  while (++index2 < settings.length) {
-    const matter2 = settings[index2];
-    enter[matter2.type] = opener(matter2);
-    exit3[matter2.type] = close;
-    exit3[matter2.type + "Value"] = value;
-  }
-  return { enter, exit: exit3 };
-}
-function opener(matter2) {
-  return open;
-  function open(token) {
-    this.enter({ type: matter2.type, value: "" }, token);
-    this.buffer();
-  }
-}
-function close(token) {
-  const data = this.resume();
-  this.exit(token).value = data.replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, "");
-}
-function value(token) {
-  this.config.enter.data.call(this, token);
-  this.config.exit.data.call(this, token);
+// node_modules/micromark-extension-math/lib/syntax.js
+function math(options) {
+  return {
+    flow: {
+      [36]: mathFlow
+    },
+    text: {
+      [36]: mathText(options)
+    }
+  };
 }
 
 // src/Mdast.ts
@@ -24992,13 +25011,16 @@ var Mdast = class {
     }
     return void 0;
   }
-};
-var MarkdownAST = class {
-  constructor(root) {
-    this.root = root;
-  }
-  findNodeWithRange(range) {
-    return Ast.findNodeWithRange(this.root, range);
+  static findAncestorWithLargerRange(node, ancestors) {
+    if (ancestors.length === 0) {
+      return node;
+    }
+    for (let i = ancestors.length - 1; i >= 0; --i) {
+      if (!AstPosMath.equals(node.position.start, ancestors[i].position.start) || !AstPosMath.equals(node.position.end, ancestors[i].position.end)) {
+        return ancestors[i];
+      }
+    }
+    return node;
   }
 };
 var MarkdownASTBuilder = class {
@@ -25026,9 +25048,10 @@ var MarkdownASTBuilder = class {
       ]
     });
     this.nestSections(tree);
-    return new MarkdownAST(tree);
+    return tree;
   }
   static nestSections(tree) {
+    var _a, _b, _c, _d;
     for (let depth = 6; depth >= 1; --depth) {
       let currentSection = void 0;
       for (let i = 0; i < tree.children.length; ++i) {
@@ -25039,24 +25062,24 @@ var MarkdownASTBuilder = class {
               type: "section-content",
               children: [],
               position: {
-                start: Pos.fromPoint(heading.position.end),
-                end: Pos.fromPoint(heading.position.end)
+                start: heading.position.end,
+                end: heading.position.end
               }
             };
             const subSections = {
               type: "sub-sections",
               children: [],
               position: {
-                start: Pos.fromPoint(heading.position.end),
-                end: Pos.fromPoint(heading.position.end)
+                start: heading.position.end,
+                end: heading.position.end
               }
             };
             currentSection = {
               type: "section",
               children: [heading, sectionContent, subSections],
               position: {
-                start: Pos.fromPoint(heading.position.start),
-                end: Pos.fromPoint(heading.position.end)
+                start: heading.position.start,
+                end: heading.position.end
               }
             };
             tree.children[i] = currentSection;
@@ -25066,13 +25089,21 @@ var MarkdownASTBuilder = class {
         } else {
           if (currentSection) {
             if (tree.children[i].type === "section") {
+              if (currentSection.children[2].children.length == 0) {
+                currentSection.children[2].position.start = (_a = tree.children[i].position) == null ? void 0 : _a.start;
+              }
+              currentSection.children[2].position.end = (_b = tree.children[i].position) == null ? void 0 : _b.end;
               currentSection.children[2].children.push(tree.children[i]);
             } else {
+              if (currentSection.children[1].children.length == 0) {
+                currentSection.children[1].position.start = (_c = tree.children[i].position) == null ? void 0 : _c.start;
+              }
+              currentSection.children[1].position.end = (_d = tree.children[i].position) == null ? void 0 : _d.end;
               currentSection.children[1].children.push(tree.children[i]);
+              currentSection.children[2].position.start = currentSection.children[1].position.end;
+              currentSection.children[2].position.end = currentSection.children[1].position.end;
             }
-            const end = Pos.fromPoint(tree.children[i].position.end);
-            currentSection.position.end = end;
-            currentSection.children[1].position.end = end;
+            currentSection.position.end = tree.children[i].position.end;
             tree.children[i] = void 0;
           }
         }
@@ -26161,8 +26192,8 @@ var SimpleText;
 var GrowCommand = class {
   static growSelection(markdown, selection) {
     const tree = MarkdownASTBuilder.parse(markdown);
-    console.log("tree", tree.root);
-    const result = tree.findNodeWithRange(selection);
+    console.log("tree", tree);
+    const result = Ast.findNodeWithRange(tree, selection);
     let nodeWithSelection = result.node;
     console.log(result.ancestors.map((a) => a.type));
     const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
@@ -26171,12 +26202,12 @@ var GrowCommand = class {
     } else {
       if (Ast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {
         console.log("node is filled, selecting parent");
-        nodeWithSelection = nodeWithSelection.parent;
+        nodeWithSelection = Mdast.findAncestorWithLargerRange(nodeWithSelection, result.ancestors);
       }
       console.log(`filling node of type ${nodeWithSelection.type}`);
       return {
-        start: Pos.fromPoint(nodeWithSelection.position.start),
-        end: Pos.fromPoint(nodeWithSelection.position.end)
+        start: nodeWithSelection.position.start,
+        end: nodeWithSelection.position.end
       };
     }
   }
@@ -26193,29 +26224,31 @@ var GrowCommand = class {
     const tree = SimpleText.parse(text4);
     console.log(tree);
     const mappedSelection = {
-      start: range.start.minus(Pos.fromPoint(paragraphRange.start)),
-      end: range.end.minus(Pos.fromPoint(paragraphRange.start))
+      start: AstPosMath.toOneBased(AstPosMath.minus(range.start, paragraphRange.start)),
+      end: AstPosMath.toOneBased(AstPosMath.minus(range.end, paragraphRange.start))
     };
-    mappedSelection.start.line++;
-    mappedSelection.end.line++;
-    mappedSelection.start.column++;
-    mappedSelection.end.column++;
     console.log("mapped selection:", mappedSelection);
     const { node: nodeWithSelection, ancestors } = Ast.findNodeWithRange(tree, mappedSelection);
     console.log("antlr result node", nodeWithSelection);
     console.log("ancestors", ancestors);
     let textNode = nodeWithSelection;
-    if (Ast.fillsNode(nodeWithSelection, range)) {
+    if (Ast.fillsNode(nodeWithSelection, mappedSelection)) {
       console.log("selection already fills the node, growing !");
-      textNode = ancestors[ancestors.length - 1];
+      textNode = Mdast.findAncestorWithLargerRange(nodeWithSelection, ancestors);
     }
     console.log("selecting", textNode);
     console.log(`selecting text ${textNode.text}`);
     console.log("new selection start", textNode.position.start);
     console.log("new selection end", textNode.position.end);
     const remappedSelection = {
-      start: new Pos(paragraphRange.start.line - 1 + textNode.position.start.line, paragraphRange.start.column - 1 + textNode.position.start.column),
-      end: new Pos(paragraphRange.start.line - 1 + textNode.position.end.line, paragraphRange.start.column - 1 + textNode.position.end.column + 1)
+      start: {
+        line: paragraphRange.start.line - 1 + textNode.position.start.line,
+        column: paragraphRange.start.column - 1 + textNode.position.start.column
+      },
+      end: {
+        line: paragraphRange.start.line - 1 + textNode.position.end.line,
+        column: paragraphRange.start.column - 1 + textNode.position.end.column + 1
+      }
     };
     console.log("mapped selection start", remappedSelection.start);
     console.log("mapped selection end", remappedSelection.end);
@@ -26235,7 +26268,7 @@ var StructuralEditPlugin = class extends import_obsidian.Plugin {
       name: "Grow selection",
       editorCallback: async (editor, view) => {
         const { head, anchor } = editor.listSelections()[0];
-        const selection = Pos.order(Pos.fromEditorPosition(head), Pos.fromEditorPosition(anchor));
+        const selection = AstPosMath.order(AstPosMath.fromEditorPosition(head), AstPosMath.fromEditorPosition(anchor));
         console.log("selection start", selection.start);
         console.log("selection end", selection.end);
         const newSelection = GrowCommand.growSelection(view.data, selection);

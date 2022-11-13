@@ -1,4 +1,3 @@
-import { Pos } from '../src/Pos';
 import { TestUtil } from './util';
 import getSelection = TestUtil.getSelection;
 import parseRange = TestUtil.parseRange;
@@ -35,7 +34,7 @@ describe('renderSelection (meta)', () => {
             throw Error('range start and end cannot be empty');
         }
 
-        const rendered = renderSelection(text, { start: Pos.fromPoint(start), end: Pos.fromPoint(end) });
+        const rendered = renderSelection(text, { start: start, end: end });
         expect(rendered).toBe(expected);
     });
 });

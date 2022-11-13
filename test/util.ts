@@ -1,30 +1,31 @@
-import { Point } from '../src/Ast';
-import { Pos, Range } from '../src/Pos';
+import { AstPos, AstRange } from '../src/Ast';
 import CustomMatcherResult = jest.CustomMatcherResult;
 
 const insert = (text: string, pos: number, insert: string) => text.slice(0, pos) + insert + text.slice(pos);
 
 export namespace TestUtil {
     /** Format a position as "1:4" */
-    export function formatPosition(position?: Point) {
+    export function formatPosition(position?: AstPos) {
         return position ? `${position.line}:${position.column}` : '';
     }
 
     /** Format a Range as "1:4-10:29" */
-    export function formatRange(range: { start?: Point; end?: Point }) {
+    export function formatRange(range: { start?: AstPos; end?: AstPos }) {
         return `${formatPosition(range.start)}-${formatPosition(range.end)}`;
     }
 
     /** Parse a string in the format "1:4-10:29" into a Range */
-    export function parseRange(range: string): { start?: Point; end?: Point } {
-        if (!range) {
-            return {
-                start: undefined,
-                end: undefined,
-            };
-        }
+    export function parsePos(pos: string): AstPos {
+        const [line, column] = pos.split(':');
+        return {
+            line: parseInt(line),
+            column: parseInt(column),
+        };
+    }
 
-        const parts = range.split(/[:-]/).map(v => parseInt(v));
+    /** Parse a string in the format "1:4-10:29" into a Range */
+    export function parseRange(range: string): AstRange {
+        const parts = range.split(/[:-]/).map((v) => parseInt(v));
         if (parts.length !== 4) {
             throw Error(`invalid range: ${range}`);
         }
@@ -42,7 +43,7 @@ export namespace TestUtil {
     }
 
     /** return selection identified by markers in a text, eg "my |text|" */
-    export function getSelection(text: string, marker: string = '|'): Range | undefined {
+    export function getSelection(text: string, marker: string = '|'): AstRange | undefined {
         const left = text.indexOf(marker);
         if (left < 0) {
             return undefined;
@@ -85,8 +86,8 @@ export namespace TestUtil {
         }
 
         return {
-            start: Pos.fromPoint(posLeft),
-            end: posRight ? Pos.fromPoint(posRight) : Pos.fromPoint(posLeft),
+            start: posLeft,
+            end: posRight ? posRight : posLeft,
         };
     }
 
@@ -95,7 +96,7 @@ export namespace TestUtil {
         return text.replaceAll(marker, '');
     }
 
-    export function renderSelection(text: string, selection: Range, marker: string = '|'): string {
+    export function renderSelection(text: string, selection: AstRange, marker: string = '|'): string {
         if (!selection.start) {
             return text;
         }
@@ -131,7 +132,7 @@ declare global {
 }
 
 expect.extend({
-    toMatchRange(received: Range, range?: string): CustomMatcherResult {
+    toMatchRange(received: AstRange, range?: string): CustomMatcherResult {
         if (range === undefined) {
             return received
                 ? {

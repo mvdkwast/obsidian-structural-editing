@@ -1,24 +1,24 @@
-import { Content, Heading, Root } from 'mdast-util-from-markdown/lib';
 import { fromMarkdown } from 'mdast-util-from-markdown';
-import { math } from 'micromark-extension-math';
-import { mathFromMarkdown } from 'mdast-util-math';
-import { gfmTaskListItem } from 'micromark-extension-gfm-task-list-item';
-import { gfmTaskListItemFromMarkdown } from 'mdast-util-gfm-task-list-item';
-import { gfmTable } from 'micromark-extension-gfm-table';
-import { gfmTableFromMarkdown } from 'mdast-util-gfm-table';
-import { gfmStrikethrough } from 'micromark-extension-gfm-strikethrough';
-import { gfmStrikethroughFromMarkdown } from 'mdast-util-gfm-strikethrough';
-import { gfmFootnote } from 'micromark-extension-gfm-footnote';
-import { gfmFootnoteFromMarkdown } from 'mdast-util-gfm-footnote';
-import { gfmAutolinkLiteral } from 'micromark-extension-gfm-autolink-literal';
-import { gfmAutolinkLiteralFromMarkdown } from 'mdast-util-gfm-autolink-literal';
-import { gfm } from 'micromark-extension-gfm';
-import { gfmFromMarkdown } from 'mdast-util-gfm';
-import { frontmatter } from 'micromark-extension-frontmatter';
+import { Content, Heading, Root } from 'mdast-util-from-markdown/lib';
 import { frontmatterFromMarkdown } from 'mdast-util-frontmatter';
+import { gfmFromMarkdown } from 'mdast-util-gfm';
+import { gfmAutolinkLiteralFromMarkdown } from 'mdast-util-gfm-autolink-literal';
+import { gfmFootnoteFromMarkdown } from 'mdast-util-gfm-footnote';
+import { gfmStrikethroughFromMarkdown } from 'mdast-util-gfm-strikethrough';
+import { gfmTableFromMarkdown } from 'mdast-util-gfm-table';
+import { gfmTaskListItemFromMarkdown } from 'mdast-util-gfm-task-list-item';
+import { mathFromMarkdown } from 'mdast-util-math';
+import { frontmatter } from 'micromark-extension-frontmatter';
+import { gfm } from 'micromark-extension-gfm';
+import { gfmAutolinkLiteral } from 'micromark-extension-gfm-autolink-literal';
+import { gfmFootnote } from 'micromark-extension-gfm-footnote';
+import { gfmStrikethrough } from 'micromark-extension-gfm-strikethrough';
+import { gfmTable } from 'micromark-extension-gfm-table';
+import { gfmTaskListItem } from 'micromark-extension-gfm-task-list-item';
+import { math } from 'micromark-extension-math';
 
-import { Pos, Range } from './Pos';
-import { Ast, AstNode } from './Ast';
+import { AstNode, AstPos, AstRange } from './Ast';
+import { AstPosMath } from './AstPos';
 
 export class Mdast {
     static isInParagraph(ancestors: AstNode[]): boolean {
@@ -50,39 +50,48 @@ export class Mdast {
 
         return undefined;
     }
+
+    static findAncestorWithLargerRange(node: AstNode, ancestors: AstNode[]): AstNode {
+        if (ancestors.length === 0) {
+            return node;
+        }
+
+        for (let i = ancestors.length - 1; i >= 0; --i) {
+            if (
+                !AstPosMath.equals(node.position.start!, ancestors[i].position.start!) ||
+                !AstPosMath.equals(node.position.end!, ancestors[i].position.end!)
+            ) {
+                return ancestors[i];
+            }
+        }
+
+        return node;
+    }
 }
 
 // @ts-ignore
 interface Section extends Parent {
     type: 'section';
     children: [Heading, SectionContent, SubSections];
-    position: Range;
+    position: AstRange;
 }
 
 // @ts-ignore
 interface SectionContent extends Parent {
     type: 'section-content';
     children: Content[];
-    position: Range;
+    position: AstRange;
 }
 
 // @ts-ignore
 interface SubSections extends Parent {
     type: 'sub-sections';
     children: Content[];
-    position: Range;
-}
-
-class MarkdownAST {
-    constructor(public readonly root: Root) {}
-
-    findNodeWithRange(range: Range): { node: AstNode; ancestors: AstNode[] } {
-        return Ast.findNodeWithRange(this.root as AstNode, range);
-    }
+    position: AstRange;
 }
 
 export class MarkdownASTBuilder {
-    static parse(markdown: string): MarkdownAST {
+    static parse(markdown: string): AstNode {
         const tree = fromMarkdown(markdown, {
             extensions: [
                 math(),
@@ -109,7 +118,7 @@ export class MarkdownASTBuilder {
         // console.log(tree);
         this.nestSections(tree);
 
-        return new MarkdownAST(tree);
+        return tree as AstNode;
     }
 
     public static nestSections(tree: Root): void {
@@ -124,8 +133,8 @@ export class MarkdownASTBuilder {
                             type: 'section-content',
                             children: [],
                             position: {
-                                start: Pos.fromPoint(heading.position!.end),
-                                end: Pos.fromPoint(heading.position!.end),
+                                start: heading.position!.end,
+                                end: heading.position!.end,
                             },
                         };
 
@@ -133,8 +142,8 @@ export class MarkdownASTBuilder {
                             type: 'sub-sections',
                             children: [],
                             position: {
-                                start: Pos.fromPoint(heading.position!.end),
-                                end: Pos.fromPoint(heading.position!.end),
+                                start: heading.position!.end,
+                                end: heading.position!.end,
                             },
                         };
 
@@ -143,8 +152,8 @@ export class MarkdownASTBuilder {
                             // @ts-ignore
                             children: [heading, sectionContent, subSections],
                             position: {
-                                start: Pos.fromPoint(heading.position!.start),
-                                end: Pos.fromPoint(heading.position!.end),
+                                start: heading.position!.start,
+                                end: heading.position!.end,
                             },
                         };
 
@@ -157,14 +166,25 @@ export class MarkdownASTBuilder {
                     if (currentSection) {
                         // @ts-ignore
                         if (tree.children[i].type === 'section') {
+                            if (currentSection.children[2].children.length == 0) {
+                                currentSection.children[2].position.start = tree.children[i].position?.start as AstPos;
+                            }
+                            currentSection.children[2].position.end = tree.children[i].position?.end as AstPos;
                             currentSection.children[2].children.push(tree.children[i]);
                         } else {
+                            if (currentSection.children[1].children.length == 0) {
+                                currentSection.children[1].position.start = tree.children[i].position?.start as AstPos;
+                            }
+                            currentSection.children[1].position.end = tree.children[i].position?.end as AstPos;
                             currentSection.children[1].children.push(tree.children[i]);
+
+                            // we can only have section-content elements until we have encounter the first sub-section
+                            // so don't have to worry about modifying the sub-sections positions.
+                            currentSection.children[2].position.start = currentSection.children[1].position.end;
+                            currentSection.children[2].position.end = currentSection.children[1].position.end;
                         }
 
-                        const end = Pos.fromPoint(tree.children[i].position!.end);
-                        currentSection.position.end = end;
-                        currentSection.children[1].position.end = end;
+                        currentSection.position.end = tree.children[i].position!.end;
                         // @ts-ignore
                         tree.children[i] = undefined;
                     }
