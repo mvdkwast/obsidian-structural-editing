@@ -1,2 +1,3 @@
-./out
-./grammar
+out/*
+src/grammar/*
+main.js
