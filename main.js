@@ -26279,6 +26279,32 @@ var GrowCommand = class {
   }
 };
 
+// src/SelectionHistory.ts
+var SelectionHistory = class {
+  static pushSelection(file, selection) {
+    const selections = this.history.get(file);
+    if (!selections) {
+      this.history.set(file, [selection]);
+    } else {
+      selections.push(selection);
+    }
+  }
+  static popSelection(file) {
+    const selections = this.history.get(file);
+    if (!selections) {
+      return void 0;
+    }
+    return selections.pop();
+  }
+  static clear(file) {
+    const selections = this.history.get(file);
+    if (selections) {
+      selections.length = 0;
+    }
+  }
+};
+SelectionHistory.history = /* @__PURE__ */ new Map();
+
 // src/main.ts
 var DEFAULT_SETTINGS = {
   convertSvgToBitmap: true
@@ -26295,7 +26321,31 @@ var StructuralEditPlugin = class extends import_obsidian.Plugin {
         console.log("selection start", selection.start);
         console.log("selection end", selection.end);
         const newSelection = GrowCommand.growSelection(view.data, selection);
-        editor.setSelection(this.toEditorPosition(newSelection.end), this.toEditorPosition(newSelection.start));
+        const obsidianSelection = {
+          head: this.toEditorPosition(newSelection.start),
+          anchor: this.toEditorPosition(newSelection.end)
+        };
+        editor.setSelection(obsidianSelection.anchor, obsidianSelection.head);
+        if (AstPosMath.equals(selection.start, selection.end)) {
+          SelectionHistory.clear(view.file.path);
+          SelectionHistory.pushSelection(view.file.path, { head, anchor });
+        }
+        SelectionHistory.pushSelection(view.file.path, obsidianSelection);
+      }
+    });
+    this.addCommand({
+      id: "shrink-selection",
+      name: "Shrink selection",
+      editorCallback: async (editor, view) => {
+        const { head, anchor } = editor.listSelections()[0];
+        let historicalSelection = SelectionHistory.popSelection(view.file.path);
+        if (historicalSelection && historicalSelection.head.line == head.line && historicalSelection.head.ch == head.ch && historicalSelection.anchor.line == anchor.line && historicalSelection.anchor.ch === anchor.ch) {
+          historicalSelection = SelectionHistory.popSelection(view.file.path);
+        }
+        if (historicalSelection) {
+          editor.setSelection(historicalSelection.anchor, historicalSelection.head);
+        } else {
+        }
       }
     });
   }
