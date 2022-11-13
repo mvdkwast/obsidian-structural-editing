@@ -3,6 +3,11 @@ import { AstPosMath } from './AstPos';
 import { MarkdownASTBuilder, Mdast } from './Mdast';
 import { SimpleText } from './SimpleText';
 
+type SelectInParagraphResult = {
+    status: 'SUB_RANGE' | 'PARENT_RANGE';
+    range?: AstRange;
+};
+
 export class GrowCommand {
     static growSelection(markdown: string, selection: AstRange): AstRange {
         const tree = MarkdownASTBuilder.parse(markdown);
@@ -15,7 +20,25 @@ export class GrowCommand {
         const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
         if (parentParagraph && !Ast.fillsNode(parentParagraph, selection)) {
             // Node is an unfilled paragraph or paragraph content (text, emphasis, ...)
-            return this.selectInParagraph(markdown, parentParagraph, selection);
+            const subParserResult = this.selectInParagraph(markdown, parentParagraph, selection);
+            if (subParserResult.status === 'SUB_RANGE') {
+                return subParserResult.range!;
+            } /* if (subParserResult.status === 'PARENT_RANGE') */ else {
+                // This happens if the parent parser cannot detect that the entire node has been selected : for instance
+                // if the token has trailing space and all the non-space characters are selected the node should be
+                // considered as selected by the sub-parser, but the parent parser doesn't look inside the block.
+
+                // FIXME - deduplicate
+                console.log('node is filled, selecting parent');
+                nodeWithSelection = Mdast.findAncestorWithLargerRange(parentParagraph, result.ancestors);
+
+                console.log(`filling node of type ${nodeWithSelection.type}`);
+
+                return {
+                    start: nodeWithSelection.position.start!,
+                    end: nodeWithSelection.position.end!,
+                };
+            }
         } else {
             // Node is something a more structural part of the Markdown document
             if (Ast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {
@@ -32,7 +55,11 @@ export class GrowCommand {
         }
     }
 
-    private static selectInParagraph(markdown: string, parentParagraph: AstNode, range: AstRange): AstRange {
+    private static selectInParagraph(
+        markdown: string,
+        parentParagraph: AstNode,
+        range: AstRange,
+    ): SelectInParagraphResult {
         // in document coordinates
         const paragraphRange: AstRange = {
             start: parentParagraph.position!.start!,
@@ -55,6 +82,12 @@ export class GrowCommand {
             end: AstPosMath.toOneBased(AstPosMath.minus(range.end, paragraphRange.start)),
         };
         console.log('mapped selection:', mappedSelection);
+
+        if (Ast.fillsNode(tree, mappedSelection)) {
+            return {
+                status: 'PARENT_RANGE',
+            };
+        }
 
         // find node in range
         const { node: nodeWithSelection, ancestors } = Ast.findNodeWithRange(tree, mappedSelection);
@@ -88,6 +121,10 @@ export class GrowCommand {
 
         console.log('mapped selection start', remappedSelection.start);
         console.log('mapped selection end', remappedSelection.end);
-        return remappedSelection;
+
+        return {
+            status: 'SUB_RANGE',
+            range: remappedSelection,
+        };
     }
 }

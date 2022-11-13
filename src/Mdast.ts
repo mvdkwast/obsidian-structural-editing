@@ -58,14 +58,14 @@ export class Mdast {
 
         for (let i = ancestors.length - 1; i >= 0; --i) {
             if (
-                !AstPosMath.equals(node.position.start!, ancestors[i].position.start!) ||
-                !AstPosMath.equals(node.position.end!, ancestors[i].position.end!)
+                AstPosMath.compareTo(ancestors[i].position.start!, node.position.start!) < 0 ||
+                AstPosMath.compareTo(ancestors[i].position.end!, node.position.end!) > 0
             ) {
                 return ancestors[i];
             }
         }
 
-        return node;
+        return ancestors[0];
     }
 }
 

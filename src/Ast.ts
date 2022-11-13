@@ -47,6 +47,11 @@ export namespace Ast {
         let currentParent: AstNode = root;
         const nodeStack: AstNode[] = [];
 
+        selection = {
+            start: AstPosMath.compareTo(selection.start, root.position.end!) > 0 ? root.position.end! : selection.start,
+            end: AstPosMath.compareTo(selection.end, root.position.end!) > 0 ? root.position.end! : selection.end,
+        };
+
         // eslint-disable-next-line no-constant-condition
         while (true) {
             console.log('trying node', currentParent);

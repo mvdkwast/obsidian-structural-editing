@@ -30,7 +30,6 @@ export function assertTreeMatches(
             // mdast removes the children field
             expect(!tree.children || !tree.children.length).toBeTruthy();
         }
-
     } catch (err) {
         // @ts-expect-error
         if (!('nodes' in err)) {

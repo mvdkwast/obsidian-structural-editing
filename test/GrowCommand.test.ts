@@ -29,7 +29,7 @@ describe('Grow command', () => {
     const cases = [
         // paragraph level
         ['|word', '|word|'],
-        ['word|', '|word|'], // FIXME: edge-case, should only be the case if the file only contains one paragraph
+        ['word|', '|word|'],
         ['wo|rd', '|word|'],
         ['two| words', '|two| words'],
         ['two |words', 'two |words|'],
