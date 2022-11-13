@@ -33,7 +33,7 @@ export default class StructuralEditPlugin extends Plugin {
                 console.log('selection end', selection.end);
 
                 const newSelection = GrowCommand.growSelection(view.data, selection);
-                editor.setSelection(this.toEditorPosition(newSelection.start), this.toEditorPosition(newSelection.end));
+                editor.setSelection(this.toEditorPosition(newSelection.end), this.toEditorPosition(newSelection.start));
             },
         });
     }

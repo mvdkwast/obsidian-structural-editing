@@ -18223,6 +18223,10 @@ var Ast;
     var _a, _b;
     let currentParent = root;
     const nodeStack = [];
+    selection = {
+      start: AstPosMath.compareTo(selection.start, root.position.end) > 0 ? root.position.end : selection.start,
+      end: AstPosMath.compareTo(selection.end, root.position.end) > 0 ? root.position.end : selection.end
+    };
     while (true) {
       console.log("trying node", currentParent);
       nodeStack.push(currentParent);
@@ -25016,11 +25020,11 @@ var Mdast = class {
       return node;
     }
     for (let i = ancestors.length - 1; i >= 0; --i) {
-      if (!AstPosMath.equals(node.position.start, ancestors[i].position.start) || !AstPosMath.equals(node.position.end, ancestors[i].position.end)) {
+      if (AstPosMath.compareTo(ancestors[i].position.start, node.position.start) < 0 || AstPosMath.compareTo(ancestors[i].position.end, node.position.end) > 0) {
         return ancestors[i];
       }
     }
-    return node;
+    return ancestors[0];
   }
 };
 var MarkdownASTBuilder = class {
@@ -26198,7 +26202,18 @@ var GrowCommand = class {
     console.log(result.ancestors.map((a) => a.type));
     const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
     if (parentParagraph && !Ast.fillsNode(parentParagraph, selection)) {
-      return this.selectInParagraph(markdown, parentParagraph, selection);
+      const subParserResult = this.selectInParagraph(markdown, parentParagraph, selection);
+      if (subParserResult.status === "SUB_RANGE") {
+        return subParserResult.range;
+      } else {
+        console.log("node is filled, selecting parent");
+        nodeWithSelection = Mdast.findAncestorWithLargerRange(parentParagraph, result.ancestors);
+        console.log(`filling node of type ${nodeWithSelection.type}`);
+        return {
+          start: nodeWithSelection.position.start,
+          end: nodeWithSelection.position.end
+        };
+      }
     } else {
       if (Ast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {
         console.log("node is filled, selecting parent");
@@ -26228,6 +26243,11 @@ var GrowCommand = class {
       end: AstPosMath.toOneBased(AstPosMath.minus(range.end, paragraphRange.start))
     };
     console.log("mapped selection:", mappedSelection);
+    if (Ast.fillsNode(tree, mappedSelection)) {
+      return {
+        status: "PARENT_RANGE"
+      };
+    }
     const { node: nodeWithSelection, ancestors } = Ast.findNodeWithRange(tree, mappedSelection);
     console.log("antlr result node", nodeWithSelection);
     console.log("ancestors", ancestors);
@@ -26252,7 +26272,10 @@ var GrowCommand = class {
     };
     console.log("mapped selection start", remappedSelection.start);
     console.log("mapped selection end", remappedSelection.end);
-    return remappedSelection;
+    return {
+      status: "SUB_RANGE",
+      range: remappedSelection
+    };
   }
 };
 
