@@ -26295,7 +26295,7 @@ var StructuralEditPlugin = class extends import_obsidian.Plugin {
         console.log("selection start", selection.start);
         console.log("selection end", selection.end);
         const newSelection = GrowCommand.growSelection(view.data, selection);
-        editor.setSelection(this.toEditorPosition(newSelection.start), this.toEditorPosition(newSelection.end));
+        editor.setSelection(this.toEditorPosition(newSelection.end), this.toEditorPosition(newSelection.start));
       }
     });
   }
