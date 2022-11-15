@@ -54,7 +54,6 @@ export namespace Ast {
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            console.log('trying node', currentParent);
             nodeStack.push(currentParent);
 
             // we consider the space after a token to be part of the token regarding selection
@@ -86,15 +85,15 @@ export namespace Ast {
             }
 
             if (!child) {
-                console.log('no matching child');
+                // no matching child, select it
                 break;
             }
 
             if (child.children && child.children.length > 0) {
-                console.log('child with children');
+                // child with children, continue looking in children
                 currentParent = child;
             } else {
-                console.log('child with no children');
+                // child with no children (terminal), select it
                 nodeStack.push(child);
                 break;
             }

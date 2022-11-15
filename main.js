@@ -18200,6 +18200,107 @@ var AstPosMath = class {
   }
 };
 
+// src/cm/GrowTransactions.ts
+var import_state = require("@codemirror/state");
+
+// src/CodeMirrorUtil.ts
+var CodeMirrorUtil = class {
+  static toSelection(editorView, anchor, head) {
+    const doc = editorView.state.doc;
+    const anchorPos = this.toPos(doc, anchor);
+    const headPos = head ? this.toPos(doc, head) : anchorPos;
+    return {
+      anchor: anchorPos,
+      head: headPos
+    };
+  }
+  static toPos(text4, pos) {
+    if (pos.line < 0) {
+      return 0;
+    }
+    const n = pos.line + 1;
+    if (n > text4.lines) {
+      return text4.length;
+    }
+    const i = text4.line(n);
+    return isFinite(pos.ch) ? pos.ch < 0 ? i.from + Math.max(0, i.length + pos.ch) : i.from + pos.ch : i.to;
+  }
+};
+
+// src/cm/GrowTransactions.ts
+var growEffect = import_state.StateEffect.define();
+var undoGrowEffect = import_state.StateEffect.define();
+var resetGrowEffect = import_state.StateEffect.define();
+var selectionChangedTransactionFilter = import_state.EditorState.transactionFilter.of((transaction) => {
+  if (transaction.selection && !transaction.effects.some((e) => e.is(growEffect))) {
+    return [transaction, { effects: [resetGrowEffect.of(null)] }];
+  }
+  return transaction;
+});
+var growField = import_state.StateField.define({
+  create(state) {
+    return {
+      lastCommand: "SHRINK",
+      selections: []
+    };
+  },
+  update(oldState, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(growEffect)) {
+        return {
+          lastCommand: "GROW",
+          selections: [...oldState.selections, effect.value]
+        };
+      }
+      if (effect.is(resetGrowEffect)) {
+        return {
+          lastCommand: "SHRINK",
+          selections: []
+        };
+      }
+      if (effect.is(undoGrowEffect)) {
+        return {
+          lastCommand: "SHRINK",
+          selections: oldState.selections.slice(0, oldState.selections.length - (oldState.lastCommand === "SHRINK" ? 1 : 2))
+        };
+      }
+    }
+    return oldState;
+  }
+});
+var GrowTransactions = class {
+  static extensions() {
+    return [selectionChangedTransactionFilter, growField];
+  }
+  static dispatchGrow(editorView, initialSelection, newSelection) {
+    const growState = editorView.state.field(growField);
+    if (growState.lastCommand === "SHRINK") {
+      editorView.dispatch({
+        effects: [growEffect.of(initialSelection)]
+      });
+    }
+    const codeMirrorSelection = CodeMirrorUtil.toSelection(editorView, newSelection.anchor, newSelection.head);
+    editorView.dispatch({
+      selection: codeMirrorSelection,
+      effects: [growEffect.of(newSelection)]
+    });
+  }
+  static dispatchShrink(editorView) {
+    const growState = editorView.state.field(growField);
+    const entriesNeeded = growState.lastCommand === "GROW" ? 2 : 1;
+    if (growState.selections.length >= entriesNeeded) {
+      const entry = growState.selections[growState.selections.length - entriesNeeded];
+      const codeMirrorSelection = CodeMirrorUtil.toSelection(editorView, entry.anchor, entry.head);
+      editorView.dispatch({
+        selection: codeMirrorSelection,
+        effects: [undoGrowEffect.of(null)]
+      });
+      return true;
+    }
+    return false;
+  }
+};
+
 // src/Ast.ts
 var Ast;
 ((Ast2) => {
@@ -18228,7 +18329,6 @@ var Ast;
       end: AstPosMath.compareTo(selection.end, root.position.end) > 0 ? root.position.end : selection.end
     };
     while (true) {
-      console.log("trying node", currentParent);
       nodeStack.push(currentParent);
       let child = void 0;
       const children = (_b = (_a = currentParent.children) == null ? void 0 : _a.filter((child2) => !!child2.position.start && !!child2.position.end)) != null ? _b : [];
@@ -18246,14 +18346,11 @@ var Ast;
         }
       }
       if (!child) {
-        console.log("no matching child");
         break;
       }
       if (child.children && child.children.length > 0) {
-        console.log("child with children");
         currentParent = child;
       } else {
-        console.log("child with no children");
         nodeStack.push(child);
         break;
       }
@@ -26196,19 +26293,15 @@ var SimpleText;
 var GrowCommand = class {
   static growSelection(markdown, selection) {
     const tree = MarkdownASTBuilder.parse(markdown);
-    console.log("tree", tree);
     const result = Ast.findNodeWithRange(tree, selection);
     let nodeWithSelection = result.node;
-    console.log(result.ancestors.map((a) => a.type));
     const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
     if (parentParagraph && !Ast.fillsNode(parentParagraph, selection)) {
       const subParserResult = this.selectInParagraph(markdown, parentParagraph, selection);
       if (subParserResult.status === "SUB_RANGE") {
         return subParserResult.range;
       } else {
-        console.log("node is filled, selecting parent");
         nodeWithSelection = Mdast.findAncestorWithLargerRange(parentParagraph, result.ancestors);
-        console.log(`filling node of type ${nodeWithSelection.type}`);
         return {
           start: nodeWithSelection.position.start,
           end: nodeWithSelection.position.end
@@ -26216,10 +26309,8 @@ var GrowCommand = class {
       }
     } else {
       if (Ast.fillsNode(nodeWithSelection, selection) && nodeWithSelection.parent) {
-        console.log("node is filled, selecting parent");
         nodeWithSelection = Mdast.findAncestorWithLargerRange(nodeWithSelection, result.ancestors);
       }
-      console.log(`filling node of type ${nodeWithSelection.type}`);
       return {
         start: nodeWithSelection.position.start,
         end: nodeWithSelection.position.end
@@ -26231,35 +26322,22 @@ var GrowCommand = class {
       start: parentParagraph.position.start,
       end: parentParagraph.position.end
     };
-    console.log("==================== Using sub-parser ==================== ");
-    console.log("paragraph start", paragraphRange.start);
-    console.log("paragraph end", paragraphRange.end);
     const text4 = markdown.substring(paragraphRange.start.offset, paragraphRange.end.offset);
-    console.log(text4);
     const tree = SimpleText.parse(text4);
-    console.log(tree);
     const mappedSelection = {
       start: AstPosMath.toOneBased(AstPosMath.minus(range.start, paragraphRange.start)),
       end: AstPosMath.toOneBased(AstPosMath.minus(range.end, paragraphRange.start))
     };
-    console.log("mapped selection:", mappedSelection);
     if (Ast.fillsNode(tree, mappedSelection)) {
       return {
         status: "PARENT_RANGE"
       };
     }
     const { node: nodeWithSelection, ancestors } = Ast.findNodeWithRange(tree, mappedSelection);
-    console.log("antlr result node", nodeWithSelection);
-    console.log("ancestors", ancestors);
     let textNode = nodeWithSelection;
     if (Ast.fillsNode(nodeWithSelection, mappedSelection)) {
-      console.log("selection already fills the node, growing !");
       textNode = Mdast.findAncestorWithLargerRange(nodeWithSelection, ancestors);
     }
-    console.log("selecting", textNode);
-    console.log(`selecting text ${textNode.text}`);
-    console.log("new selection start", textNode.position.start);
-    console.log("new selection end", textNode.position.end);
     const remappedSelection = {
       start: {
         line: paragraphRange.start.line - 1 + textNode.position.start.line,
@@ -26270,40 +26348,12 @@ var GrowCommand = class {
         column: paragraphRange.start.column - 1 + textNode.position.end.column + 1
       }
     };
-    console.log("mapped selection start", remappedSelection.start);
-    console.log("mapped selection end", remappedSelection.end);
     return {
       status: "SUB_RANGE",
       range: remappedSelection
     };
   }
 };
-
-// src/SelectionHistory.ts
-var SelectionHistory = class {
-  static pushSelection(file, selection) {
-    const selections = this.history.get(file);
-    if (!selections) {
-      this.history.set(file, [selection]);
-    } else {
-      selections.push(selection);
-    }
-  }
-  static popSelection(file) {
-    const selections = this.history.get(file);
-    if (!selections) {
-      return void 0;
-    }
-    return selections.pop();
-  }
-  static clear(file) {
-    const selections = this.history.get(file);
-    if (selections) {
-      selections.length = 0;
-    }
-  }
-};
-SelectionHistory.history = /* @__PURE__ */ new Map();
 
 // src/main.ts
 var DEFAULT_SETTINGS = {
@@ -26312,48 +26362,32 @@ var DEFAULT_SETTINGS = {
 var StructuralEditPlugin = class extends import_obsidian.Plugin {
   async onload() {
     await this.loadSettings();
+    this.registerEditorExtension(GrowTransactions.extensions());
     this.addCommand({
       id: "grow-selection",
       name: "Grow selection",
       editorCallback: async (editor, view) => {
-        const { head, anchor } = editor.listSelections()[0];
-        const selection = AstPosMath.order(AstPosMath.fromEditorPosition(head), AstPosMath.fromEditorPosition(anchor));
-        console.log("selection start", selection.start);
-        console.log("selection end", selection.end);
-        const newSelection = GrowCommand.growSelection(view.data, selection);
-        const obsidianSelection = {
-          head: this.toEditorPosition(newSelection.start),
-          anchor: this.toEditorPosition(newSelection.end)
+        const initialSelection = editor.listSelections()[0];
+        const range = AstPosMath.order(AstPosMath.fromEditorPosition(initialSelection.head), AstPosMath.fromEditorPosition(initialSelection.anchor));
+        const newRange = GrowCommand.growSelection(view.data, range);
+        const newSelection = {
+          head: AstPosMath.toEditorPosition(newRange.start),
+          anchor: AstPosMath.toEditorPosition(newRange.end)
         };
-        editor.setSelection(obsidianSelection.anchor, obsidianSelection.head);
-        if (AstPosMath.equals(selection.start, selection.end)) {
-          SelectionHistory.clear(view.file.path);
-          SelectionHistory.pushSelection(view.file.path, { head, anchor });
-        }
-        SelectionHistory.pushSelection(view.file.path, obsidianSelection);
+        const editorView = view.editor.cm;
+        GrowTransactions.dispatchGrow(editorView, initialSelection, newSelection);
       }
     });
     this.addCommand({
       id: "shrink-selection",
       name: "Shrink selection",
       editorCallback: async (editor, view) => {
-        const { head, anchor } = editor.listSelections()[0];
-        let historicalSelection = SelectionHistory.popSelection(view.file.path);
-        if (historicalSelection && historicalSelection.head.line == head.line && historicalSelection.head.ch == head.ch && historicalSelection.anchor.line == anchor.line && historicalSelection.anchor.ch === anchor.ch) {
-          historicalSelection = SelectionHistory.popSelection(view.file.path);
-        }
-        if (historicalSelection) {
-          editor.setSelection(historicalSelection.anchor, historicalSelection.head);
-        } else {
+        const editorView = view.editor.cm;
+        if (!GrowTransactions.dispatchShrink(editorView)) {
+          console.log("shrink without grow not implemented");
         }
       }
     });
-  }
-  toEditorPosition(pos) {
-    return {
-      line: pos.line - 1,
-      ch: pos.column - 1
-    };
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

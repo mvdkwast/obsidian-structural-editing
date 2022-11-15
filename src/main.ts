@@ -1,8 +1,9 @@
-import { Editor, EditorPosition, EditorSelection, MarkdownView, Plugin } from 'obsidian';
-import { AstPos } from './Ast';
+import { EditorView } from '@codemirror/view';
+
+import { Editor, EditorSelection, MarkdownView, Plugin } from 'obsidian';
 import { AstPosMath } from './AstPos';
+import { GrowTransactions } from './cm/GrowTransactions';
 import { GrowCommand } from './GrowCommand';
-import { SelectionHistory } from './SelectionHistory';
 
 type StructuralEditSettings = {
     /** If set svg are converted to bitmap */
@@ -13,44 +14,36 @@ const DEFAULT_SETTINGS: StructuralEditSettings = {
     convertSvgToBitmap: true,
 };
 
-// 1-based
-
 export default class StructuralEditPlugin extends Plugin {
     settings?: StructuralEditSettings;
 
     async onload() {
         await this.loadSettings();
 
+        this.registerEditorExtension(GrowTransactions.extensions());
+
         this.addCommand({
             id: 'grow-selection',
             name: 'Grow selection',
             editorCallback: async (editor: Editor, view: MarkdownView) => {
-                const { head, anchor } = editor.listSelections()[0];
-                const selection = AstPosMath.order(
-                    AstPosMath.fromEditorPosition(head),
-                    AstPosMath.fromEditorPosition(anchor),
+                const initialSelection = editor.listSelections()[0];
+                const range = AstPosMath.order(
+                    AstPosMath.fromEditorPosition(initialSelection.head),
+                    AstPosMath.fromEditorPosition(initialSelection.anchor),
                 );
-                console.log('selection start', selection.start);
-                console.log('selection end', selection.end);
 
-                const newSelection = GrowCommand.growSelection(view.data, selection);
-                const obsidianSelection: EditorSelection = {
-                    head: this.toEditorPosition(newSelection.start),
-                    anchor: this.toEditorPosition(newSelection.end),
+                const newRange = GrowCommand.growSelection(view.data, range);
+
+                const newSelection: EditorSelection = {
+                    head: AstPosMath.toEditorPosition(newRange.start),
+                    anchor: AstPosMath.toEditorPosition(newRange.end),
                 };
 
-                editor.setSelection(obsidianSelection.anchor, obsidianSelection.head);
+                // FIXME - don't push if selection unchanged (already everything selected) to avoid duplicates
 
-                // work-around: since we don't know how to handle a selection that changed, reset history
-                // if we start from no select (cursor only). This means that shrink doesn't work as intended if something
-                // was selected manually before the first grow
-                if (AstPosMath.equals(selection.start, selection.end)) {
-                    SelectionHistory.clear(view.file.path);
-                    SelectionHistory.pushSelection(view.file.path, { head, anchor });
-                }
-
-                // FIXME - don't push if selection unchanged (already everything selected)
-                SelectionHistory.pushSelection(view.file.path, obsidianSelection);
+                // @ts-expect-error, not typed
+                const editorView = view.editor.cm as EditorView;
+                GrowTransactions.dispatchGrow(editorView, initialSelection, newSelection);
             },
         });
 
@@ -58,34 +51,16 @@ export default class StructuralEditPlugin extends Plugin {
             id: 'shrink-selection',
             name: 'Shrink selection',
             editorCallback: async (editor: Editor, view: MarkdownView) => {
-                const { head, anchor } = editor.listSelections()[0];
+                // @ts-expect-error, not typed
+                const editorView = view.editor.cm as EditorView;
 
-                let historicalSelection = SelectionHistory.popSelection(view.file.path);
-                if (
-                    historicalSelection &&
-                    historicalSelection.head.line == head.line &&
-                    historicalSelection.head.ch == head.ch &&
-                    historicalSelection.anchor.line == anchor.line &&
-                    historicalSelection.anchor.ch === anchor.ch
-                ) {
-                    historicalSelection = SelectionHistory.popSelection(view.file.path);
-                }
-
-                if (historicalSelection) {
-                    editor.setSelection(historicalSelection.anchor, historicalSelection.head);
-                } else {
+                if (!GrowTransactions.dispatchShrink(editorView)) {
                     // TODO: shrink to "cursor", ie. head in Obsidian's case - this is when something was selected
                     //       manually and we call shrink
+                    console.log('shrink without grow not implemented');
                 }
             },
         });
-    }
-
-    toEditorPosition(pos: AstPos): EditorPosition {
-        return {
-            line: pos.line - 1,
-            ch: pos.column - 1,
-        };
     }
 
     async loadSettings() {
