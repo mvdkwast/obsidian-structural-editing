@@ -11,6 +11,7 @@ yarn-error.log
 *.js.map
 .log
 /out
+main.js
 
 # jest coverage files
 /coverage
