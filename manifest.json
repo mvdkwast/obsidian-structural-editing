@@ -1,7 +1,7 @@
 {
 	"id": "structural-editing",
 	"name": "_Structural Editing",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"minAppVersion": "1.0.0",
 	"description": "Structure aware editor commands, including smart grow/shrink of the selection",
 	"author": "mvdkwast",
