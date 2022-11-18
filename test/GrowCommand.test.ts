@@ -6,7 +6,7 @@ import stripSelection = TestUtil.stripSelection;
 
 describe('Grow command (single test for debugging)', () => {
     it('should pass this test', () => {
-        const [before, after] = ['|a| \n\nb1', '|a \n\nb1|'];
+        const [before, after] = ['(|wo rd|)', '|(wo rd)|'];
 
         const selection = getSelection(before);
         if (!selection || !selection.start) {
@@ -16,7 +16,7 @@ describe('Grow command (single test for debugging)', () => {
         const markdown = stripSelection(before);
         const newSelection = GrowCommand.growSelection(markdown, selection);
         if (!newSelection.start || !newSelection.end) {
-            throw Error("Grow command didn't return a valid selection");
+            throw Error('Grow command didn\'t return a valid selection');
         }
 
         const newText = renderSelection(markdown, newSelection);
@@ -36,6 +36,15 @@ describe('Grow command', () => {
         ['two wo|rds', 'two |words|'],
         ['two words|', 'two |words|'],
         ['a |test| sentence', '|a test sentence|'],
+
+        ['(wo|rd)', '(|word|)'],
+        ['(w|or|d)', '(|word|)'],
+        ['(|word|)', '|(word)|'],
+        ['(|a b|)', '|(a b)|'],
+        ['a |(b c) d', 'a |(b c)| d'],
+        ['a |(b |c) d', 'a |(b c)| d'],
+        ['a| (b |c) d', '|a (b c) d|'],
+        ['a (b c)| d', 'a |(b c)| d'],
 
         // structure level
         ['a\n\n|b1| b2', 'a\n\n|b1 b2|'],
@@ -65,7 +74,7 @@ describe('Grow command', () => {
         const markdown = stripSelection(before);
         const newSelection = GrowCommand.growSelection(markdown, selection);
         if (!newSelection.start || !newSelection.end) {
-            throw Error("Grow command didn't return a valid selection");
+            throw Error('Grow command didn\'t return a valid selection');
         }
 
         const newText = renderSelection(markdown, newSelection);

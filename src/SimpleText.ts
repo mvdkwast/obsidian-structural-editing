@@ -1,5 +1,6 @@
 import { ANTLRInputStream, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 import { AstNode } from './Ast';
 import { SimpleTextLexer } from './grammar/SimpleTextLexer';
 import {
@@ -53,6 +54,24 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements Simpl
 
     visitMidPunctuation(ctx: MidPunctuationContext): AstNode {
         return this.processTerminal(ctx, 'mid-punctuation');
+    }
+
+    visitTerminal(node: TerminalNode): AstNode {
+        return {
+            type: 'terminal',
+            position: {
+                start: {
+                    line: node.symbol.line,
+                    column: node.symbol.charPositionInLine + 1,
+                },
+                end: {
+                    line: node.symbol.line,
+                    column: node.symbol.charPositionInLine + node.text.length,
+                },
+            },
+            text: node.text,
+            children: [],
+        };
     }
 
     processTerminal(ctx: ParserRuleContext, type: string): AstNode {
