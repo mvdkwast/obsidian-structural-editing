@@ -6,7 +6,7 @@ on:
       - "*"
 
 env:
-  PLUGIN_NAME: copy-document-as-html
+  PLUGIN_NAME: structural-editing
 
 jobs:
   build:
@@ -30,6 +30,22 @@ jobs:
           ls
           echo "::set-output name=tag_name::$(git tag --sort version:refname | tail -n 1)"
 
+      - name: Get previous tag
+        id: previousTag
+        run: |
+          name=$(git --no-pager tag --sort=creatordate --merged ${{ github.ref_name }} | tail -2 | head -1)
+          echo "previousTag: $name"
+          echo "previousTag=$name" >> $GITHUB_ENV
+
+      - name: Update CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: ${{ github.ref_name }}
+          toTag: ${{ env.previousTag }}
+          writeToFile: false
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -39,6 +55,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
+          body: ${{ steps.changelog.outputs.changes }}
           draft: false
           prerelease: false
 
@@ -74,14 +91,3 @@ jobs:
           asset_path: ./manifest.json
           asset_name: manifest.json
           asset_content_type: application/json
-
-#      - name: Upload styles.css
-#        id: upload-css
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: ./styles.css
-#          asset_name: styles.css
-#          asset_content_type: text/css
