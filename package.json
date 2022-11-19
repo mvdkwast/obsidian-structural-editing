@@ -4,7 +4,7 @@
 	"description": "Structure aware editor commands, including smart grow/shrink of the selection",
 	"main": "main.js",
 	"scripts": {
-		"grammar": "antlr4ts -visitor -o src/grammar SimpleText.g4",
+		"grammar": "antlr4ts -visitor -o src/grammar *.g4",
 		"dev": "node esbuild.config.mjs",
 		"test": "jest",
 		"lint": "eslint ./src --fix && eslint ./test --fix",

@@ -2,20 +2,26 @@ import { ANTLRInputStream, CommonTokenStream, ParserRuleContext } from 'antlr4ts
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 import { AstNode } from './Ast';
-import { SimpleTextLexer } from './grammar/SimpleTextLexer';
+import { SimpleTextLex } from './grammar/SimpleTextLex';
 import {
+    BlockContext,
     EndPunctuationContext,
     ExpressionContext,
+    MathContext,
     MidPunctuationContext,
     ParagraphContext,
     PropositionContext,
+    PropositionWithOptionalPunctuationContext,
+    PropositionWithPunctuationContext,
     SentenceContext,
+    SentenceWithOptionalPunctuationContext,
+    SentenceWithPunctuationContext,
     SimpleTextParser,
     WordContext,
 } from './grammar/SimpleTextParser';
-import { SimpleTextVisitor } from './grammar/SimpleTextVisitor';
+import { SimpleTextParserVisitor } from './grammar/SimpleTextParserVisitor';
 
-class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements SimpleTextVisitor<AstNode> {
+class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements SimpleTextParserVisitor<AstNode> {
     defaultResult() {
         return {
             type: 'default',
@@ -27,16 +33,71 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements Simpl
         return this.processGroup(ctx, 'paragraph');
     }
 
+    visitBlock(ctx: BlockContext): AstNode {
+        return this.processGroup(ctx, 'block');
+    }
+
     visitSentence(ctx: SentenceContext): AstNode {
         return this.processGroup(ctx, 'sentence');
+    }
+
+    visitSentenceWithOptionalPunctuation(ctx: SentenceWithOptionalPunctuationContext): AstNode {
+        return this.processGroup(ctx, 'sentence-and-punctuation');
+    }
+
+    visitSentenceWithPunctuation(ctx: SentenceWithPunctuationContext): AstNode {
+        return this.processGroup(ctx, 'sentence-and-punctuation');
     }
 
     visitProposition(ctx: PropositionContext): AstNode {
         return this.processGroup(ctx, 'proposition');
     }
 
+    visitPropositionWithOptionalPunctuation(ctx: PropositionWithOptionalPunctuationContext): AstNode {
+        return this.processGroup(ctx, 'proposition-and-punctuation');
+    }
+
+    visitPropositionWithPunctuation(ctx: PropositionWithPunctuationContext): AstNode {
+        return this.processGroup(ctx, 'proposition-and-punctuation');
+    }
+
     visitExpression(ctx: ExpressionContext): AstNode {
         return this.processGroup(ctx, 'expression');
+    }
+
+    visitMath(ctx: MathContext): AstNode {
+        const body = ctx.text.slice(1, ctx.text.length - 1);
+
+        return this.createNode(ctx, 'math-container', [
+            {
+                type: 'terminal',
+                position: {
+                    start: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine },
+                    end: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine },
+                },
+                text: '$',
+                children: [],
+            },
+            {
+                type: 'math',
+                position: {
+                    start: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine + 1 },
+                    end: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine + body.length },
+                },
+                text: body,
+                children: [],
+            },
+            {
+                type: 'terminal',
+                position: {
+                    start: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine + body.length + 1 },
+                    end: { line: ctx.start.line, column: 1 + ctx.start.charPositionInLine + body.length + 1 },
+                },
+                text: '$',
+                children: [],
+            },
+
+        ]);
     }
 
     processGroup(ctx: ParserRuleContext, type: string) {
@@ -106,22 +167,20 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements Simpl
     }
 }
 
-function fixupAst(node: AstNode) {
-    // FIXME - deuglify
-
-    node.children?.forEach((child) => fixupAst(child));
+function recursivelyFixNodeLength(node: AstNode) {
+    node.children?.forEach((child) => recursivelyFixNodeLength(child));
 
     // Force parent end-position to match that of the last child
     const lastChild = node.children ? node.children[node.children.length - 1] : undefined;
     node.position.end = lastChild?.position.end ?? node.position.end;
 }
 
-export namespace SimpleText {
+export namespace SimpleTextAst {
     /** Parse a Markdown text and return an AST */
     export function parse(text: string): AstNode {
         // Create the lexer and parser
         const inputStream = new ANTLRInputStream(text);
-        const lexer = new SimpleTextLexer(inputStream);
+        const lexer = new SimpleTextLex(inputStream);
         const tokenStream = new CommonTokenStream(lexer);
         const parser = new SimpleTextParser(tokenStream);
 
@@ -132,7 +191,15 @@ export namespace SimpleText {
         const builder = new BuildASTVisitor();
         const ast = builder.visit(tree);
 
-        fixupAst(ast);
+        // remove EOF
+        if (ast.children) {
+            const lastChild = ast.children[ast.children?.length - 1];
+            if (lastChild && lastChild.type === 'terminal' && lastChild.text === '<EOF>') {
+                ast.children.length = ast.children.length - 1;
+            }
+        }
+
+        recursivelyFixNodeLength(ast);
 
         return ast;
     }

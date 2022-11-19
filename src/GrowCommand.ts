@@ -1,7 +1,7 @@
 import { Ast, AstNode, AstRange } from './Ast';
 import { AstPosMath } from './AstPos';
 import { MarkdownASTBuilder, Mdast } from './Mdast';
-import { SimpleText } from './SimpleText';
+import { SimpleTextAst } from './SimpleTextAst';
 
 type SelectInParagraphResult = {
     status: 'SUB_RANGE' | 'PARENT_RANGE';
@@ -62,7 +62,7 @@ export class GrowCommand {
         };
 
         const text = markdown.substring(paragraphRange.start!.offset!, paragraphRange.end!.offset!);
-        const tree: AstNode = SimpleText.parse(text);
+        const tree: AstNode = SimpleTextAst.parse(text);
 
         // translate selection into paragraph coordinates (make selection relative to text)
         const mappedSelection = {

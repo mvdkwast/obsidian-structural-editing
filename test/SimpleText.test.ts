@@ -4,7 +4,10 @@ import { nodeBuilder, terminalBuilder } from './AstTestUtil';
 
 const paragraph = nodeBuilder('paragraph');
 const sentence = nodeBuilder('sentence');
+const sentenceAndPunctuation = nodeBuilder('sentence-and-punctuation');
 const proposition = nodeBuilder('proposition');
+const propositionAndPunctuation = nodeBuilder('proposition-and-punctuation');
+const expression = nodeBuilder('expression');
 
 const word = terminalBuilder('word');
 const punctuation = terminalBuilder('punctuation');
@@ -17,12 +20,21 @@ describe('Validate SimpleText AST structure with positions', () => {
             'aaa bbb',
             paragraph(
                 '1:1-1:7',
-                sentence(
+                sentenceAndPunctuation(
                     '1:1-1:7',
-                    proposition(
+                    sentence(
                         '1:1-1:7',
-                        word('1:1-1:3', 'aaa'),
-                        word('1:5-1:7', 'bbb'),
+                        propositionAndPunctuation(
+                            '1:1-1:7',
+                            proposition(
+                                '1:1-1:7',
+                                expression(
+                                    '1:1-1:7',
+                                    word('1:1-1:3', 'aaa'),
+                                    word('1:5-1:7', 'bbb'),
+                                ),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -32,19 +44,37 @@ describe('Validate SimpleText AST structure with positions', () => {
             'aaa.\nbbb',
             paragraph(
                 '1:1-2:3',
-                sentence(
+                sentenceAndPunctuation(
                     `1:1-1:4`,
-                    proposition(
+                    sentence(
                         `1:1-1:3`,
-                        word(`1:1-1:3`, 'aaa'),
+                        propositionAndPunctuation(
+                            `1:1-1:3`,
+                            proposition(
+                                '1:1-1:3',
+                                expression(
+                                    `1:1-1:3`,
+                                    word(`1:1-1:3`, 'aaa'),
+                                )
+                            ),
+                        ),
                     ),
                     punctuation('1:4-1:4', '.')
                 ),
-                sentence(
+                sentenceAndPunctuation(
                     '2:1-2:3',
-                    proposition(
+                    sentence(
                         '2:1-2:3',
-                        word('2:1-2:3', 'bbb'),
+                        propositionAndPunctuation(
+                            '2:1-2:3',
+                            proposition(
+                                '2:1-2:3',
+                                expression(
+                                    '2:1-2:3',
+                                    word('2:1-2:3', 'bbb'),
+                                ),
+                            ),
+                        ),
                     ),
                 ),
             ),

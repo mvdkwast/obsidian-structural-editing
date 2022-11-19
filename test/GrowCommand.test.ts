@@ -6,7 +6,7 @@ import stripSelection = TestUtil.stripSelection;
 
 describe('Grow command (single test for debugging)', () => {
     it('should pass this test', () => {
-        const [before, after] = ['(|wo rd|)', '|(wo rd)|'];
+        const [before, after] = ['some $ma|th$ here', 'some $|math|$ here'];
 
         const selection = getSelection(before);
         if (!selection || !selection.start) {
@@ -45,6 +45,16 @@ describe('Grow command', () => {
         ['a |(b |c) d', 'a |(b c)| d'],
         ['a| (b |c) d', '|a (b c) d|'],
         ['a (b c)| d', 'a |(b c)| d'],
+
+        ['here `x.|do|()` and there `x.dont()`', 'here `x.|do()|` and there `x.dont()`'],
+
+        ['some $ma|th$ here', 'some $|math|$ here'],
+        ['some $|math|$ here', 'some |$math$| here'],
+
+        ['a `co|de` c', 'a `|code|` c'],
+        ['a `|code|` c', 'a |`code`| c'],
+        ['a `|co| de` c', 'a `|co de|` c'],
+        ['a `|co| \\`de`', 'a `|co \\`de|`'],
 
         // structure level
         ['a\n\n|b1| b2', 'a\n\n|b1 b2|'],

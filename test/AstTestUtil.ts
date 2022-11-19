@@ -1,3 +1,4 @@
+import { diff } from 'jest-diff';
 import { AstNode } from '../src/Ast';
 import { TestUtil } from './util';
 import CustomMatcherResult = jest.CustomMatcherResult;
@@ -40,6 +41,27 @@ export function assertTreeMatches(
     }
 }
 
+// thanks @WyrdNexus, @bennettmcelwee and @sturmenta !
+// https://gist.github.com/bennettmcelwee/06f0cadd6a41847f848b4bd2a351b6bc
+function stringify(obj: any, depth = 1) {
+    // recursion limited by depth arg
+    if (!obj || typeof obj !== 'object') return JSON.stringify(obj, null, 2);
+
+    let curDepthResult = '"<?>"'; // too deep
+    if (depth > 0) {
+        curDepthResult = Object.keys(obj)
+            .map((key) => {
+                let val = stringify(obj[key], depth - 1);
+                if (val === undefined) val = 'null';
+                return `"${key}": ${val}`;
+            })
+            .join(', ');
+        curDepthResult = `{${curDepthResult}}`;
+    }
+
+    return JSON.stringify(JSON.parse(curDepthResult), null, 2);
+}
+
 export function treeMatcher(
     tree: AstNode,
     expected: AstNode,
@@ -50,13 +72,12 @@ export function treeMatcher(
     } catch (err) {
         if ('nodes' in (err as object)) {
             // @ts-ignore
-            err.message +=
-                '\n\nnode:' +
+            err.message += diff(
                 // @ts-ignore
-                JSON.stringify(err.nodes[0], null, 2) +
-                '\n\nexpected:' +
+                stringify(err.nodes[0], 3),
                 // @ts-ignore
-                JSON.stringify(err.nodes[1], null, 2);
+                stringify(err.nodes[1], 3),
+            );
         }
         throw err;
     }
