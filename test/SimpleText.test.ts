@@ -1,5 +1,5 @@
 import type { AstNode } from '../src/Ast';
-import { SimpleText } from '../src/SimpleText';
+import { SimpleTextAst } from '../src/SimpleTextAst';
 import { nodeBuilder, terminalBuilder } from './AstTestUtil';
 
 const paragraph = nodeBuilder('paragraph');
@@ -12,7 +12,7 @@ const expression = nodeBuilder('expression');
 const word = terminalBuilder('word');
 const punctuation = terminalBuilder('punctuation');
 
-describe('Validate SimpleText AST structure with positions', () => {
+describe('Validate SimpleTextAST structure with positions', () => {
     /* eslint-disable */
     const cases: Array<[string, string, AstNode]> = [
         [
@@ -82,7 +82,7 @@ describe('Validate SimpleText AST structure with positions', () => {
     ];
 
     test.each(cases)('SimpleTestAST: %p', (name, markdown, expected) => {
-        const tree = SimpleText.parse(markdown);
+        const tree = SimpleTextAst.parse(markdown);
         expect(tree).toMatchTree(expected);
     });
 });

@@ -96,7 +96,6 @@ class BuildASTVisitor extends AbstractParseTreeVisitor<AstNode> implements Simpl
                 text: '$',
                 children: [],
             },
-
         ]);
     }
 

@@ -1,19 +1,22 @@
 lexer grammar SimpleTextLex;
 
+// rule must be before Word
 Math: DOLLAR MathBody DOLLAR;
 fragment MathBody: MathChar* MathEnd;
 fragment MathChar: ~[$\n] | ESCAPED_CHAR;
 fragment MathEnd: ~[$\n ] | ESCAPED_CHAR;
 
-Word:
-    | WORD_START WORD_CHAR* WORD_END
-    | WORD_START
-    ;
-
 Smiley : SMILEY ;
+
 Url
     : [a-z]+ '://' ~[ ]+
     | LT [a-z]+ '://' ~[ ]+ GT
+    ;
+
+Word:
+    | WORD_START WORD_CHAR* WORD_END
+    | WORD_START
+    | NUMBER
     ;
 
 QUOT: '\'';
@@ -39,14 +42,17 @@ COLON: ':';
 SEMICOLON: ';';
 
 fragment WORD_START: ~[ \t\n.?!…,:;{}[\]()'"`\\] | ESCAPED_CHAR;
-fragment WORD_CHAR: ~[ \t\n.?!…,:;{}[\]()\\] | ESCAPED_CHAR;
-fragment WORD_END: ~[ \t\n.?!…,:;{}[\]()'"`\\] | ESCAPED_CHAR;
+fragment WORD_CHAR: ~[ \t\n.?!…,:;{}[\]()\\] | NUMBER | ESCAPED_CHAR;
+fragment WORD_END: ~[ \t\n.?!…,:;{}[\]()'"`\\] | NUMBER | ESCAPED_CHAR;
 
 SMILEY
  : [:;] '-'? [)|(pD]
  | '8-)'
  ;
 
+NUMBER
+ : [0-9]+ ('.' [0-9]+)
+ ;
 
 fragment ESCAPED_CHAR: '\\' .;
 

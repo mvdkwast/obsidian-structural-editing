@@ -29,9 +29,9 @@ import { SimpleTextParserVisitor } from "./SimpleTextParserVisitor";
 
 export class SimpleTextParser extends Parser {
 	public static readonly Math = 1;
-	public static readonly Word = 2;
-	public static readonly Smiley = 3;
-	public static readonly Url = 4;
+	public static readonly Smiley = 2;
+	public static readonly Url = 3;
+	public static readonly Word = 4;
 	public static readonly QUOT = 5;
 	public static readonly DQUOT = 6;
 	public static readonly LPAREN = 7;
@@ -52,7 +52,8 @@ export class SimpleTextParser extends Parser {
 	public static readonly COLON = 22;
 	public static readonly SEMICOLON = 23;
 	public static readonly SMILEY = 24;
-	public static readonly WS = 25;
+	public static readonly NUMBER = 25;
+	public static readonly WS = 26;
 	public static readonly RULE_paragraph = 0;
 	public static readonly RULE_block = 1;
 	public static readonly RULE_sentence = 2;
@@ -79,10 +80,10 @@ export class SimpleTextParser extends Parser {
 		"'.'", "'?'", "'!'", "'\u2026'", "','", "':'", "';'",
 	];
 	private static readonly _SYMBOLIC_NAMES: Array<string | undefined> = [
-		undefined, "Math", "Word", "Smiley", "Url", "QUOT", "DQUOT", "LPAREN", 
+		undefined, "Math", "Smiley", "Url", "Word", "QUOT", "DQUOT", "LPAREN", 
 		"RPAREN", "LACCOL", "RACCOL", "LBRACK", "RBRACK", "BACKTICK", "DOLLAR", 
 		"LT", "GT", "DOT", "QMARK", "EMARK", "ELLIPS", "COMMA", "COLON", "SEMICOLON", 
-		"SMILEY", "WS",
+		"SMILEY", "NUMBER", "WS",
 	];
 	public static readonly VOCABULARY: Vocabulary = new VocabularyImpl(SimpleTextParser._LITERAL_NAMES, SimpleTextParser._SYMBOLIC_NAMES, []);
 
@@ -478,7 +479,7 @@ export class SimpleTextParser extends Parser {
 				this.state = 86;
 				this._errHandler.sync(this);
 				_la = this._input.LA(1);
-				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
+				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
 					{
 					this.state = 85;
 					this.block();
@@ -498,7 +499,7 @@ export class SimpleTextParser extends Parser {
 				this.state = 91;
 				this._errHandler.sync(this);
 				_la = this._input.LA(1);
-				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
+				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
 					{
 					this.state = 90;
 					this.block();
@@ -518,7 +519,7 @@ export class SimpleTextParser extends Parser {
 				this.state = 96;
 				this._errHandler.sync(this);
 				_la = this._input.LA(1);
-				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
+				if ((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Math) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.Word) | (1 << SimpleTextParser.QUOT) | (1 << SimpleTextParser.DQUOT) | (1 << SimpleTextParser.LPAREN) | (1 << SimpleTextParser.LACCOL) | (1 << SimpleTextParser.LBRACK) | (1 << SimpleTextParser.BACKTICK) | (1 << SimpleTextParser.LT))) !== 0)) {
 					{
 					this.state = 95;
 					this.block();
@@ -817,7 +818,7 @@ export class SimpleTextParser extends Parser {
 			{
 			this.state = 158;
 			_la = this._input.LA(1);
-			if (!((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Word) | (1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url))) !== 0))) {
+			if (!((((_la) & ~0x1F) === 0 && ((1 << _la) & ((1 << SimpleTextParser.Smiley) | (1 << SimpleTextParser.Url) | (1 << SimpleTextParser.Word))) !== 0))) {
 			this._errHandler.recoverInline(this);
 			} else {
 				if (this._input.LA(1) === Token.EOF) {
@@ -942,7 +943,7 @@ export class SimpleTextParser extends Parser {
 	}
 
 	public static readonly _serializedATN: string =
-		"\x03\uC91D\uCABA\u058D\uAFBA\u4F53\u0607\uEA8B\uC241\x03\x1B\xA9\x04\x02" +
+		"\x03\uC91D\uCABA\u058D\uAFBA\u4F53\u0607\uEA8B\uC241\x03\x1C\xA9\x04\x02" +
 		"\t\x02\x04\x03\t\x03\x04\x04\t\x04\x04\x05\t\x05\x04\x06\t\x06\x04\x07" +
 		"\t\x07\x04\b\t\b\x04\t\t\t\x04\n\t\n\x04\v\t\v\x04\f\t\f\x04\r\t\r\x04" +
 		"\x0E\t\x0E\x03\x02\x07\x02\x1E\n\x02\f\x02\x0E\x02!\v\x02\x03\x02\x03" +
@@ -990,7 +991,7 @@ export class SimpleTextParser extends Parser {
 		"ba\x03\x02\x02\x02bc\x03\x02\x02\x02cd\x03\x02\x02\x02d\x9F\x07\x0E\x02" +
 		"\x02e\x9F\x05\x16\f\x02fh\x05\x14\v\x02gf\x03\x02\x02\x02hi\x03\x02\x02" +
 		"\x02ig\x03\x02\x02\x02ij\x03\x02\x02\x02j\x9F\x03\x02\x02\x02kl\x07\x11" +
-		"\x02\x02lm\x07\x06\x02\x02m\x9F\x07\x12\x02\x02nr\x07\x07\x02\x02oq\n" +
+		"\x02\x02lm\x07\x05\x02\x02m\x9F\x07\x12\x02\x02nr\x07\x07\x02\x02oq\n" +
 		"\x02\x02\x02po\x03\x02\x02\x02qt\x03\x02\x02\x02rs\x03\x02\x02\x02rp\x03" +
 		"\x02\x02\x02su\x03\x02\x02\x02tr\x03\x02\x02\x02u\x9F\x07\x07\x02\x02" +
 		"vz\x07\b\x02\x02wy\n\x03\x02\x02xw\x03\x02\x02\x02y|\x03\x02\x02\x02z" +

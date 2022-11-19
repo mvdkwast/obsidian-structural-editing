@@ -16,7 +16,7 @@ describe('Grow command (single test for debugging)', () => {
         const markdown = stripSelection(before);
         const newSelection = GrowCommand.growSelection(markdown, selection);
         if (!newSelection.start || !newSelection.end) {
-            throw Error('Grow command didn\'t return a valid selection');
+            throw Error("Grow command didn't return a valid selection");
         }
 
         const newText = renderSelection(markdown, newSelection);
@@ -51,6 +51,12 @@ describe('Grow command', () => {
         ['some $ma|th$ here', 'some $|math|$ here'],
         ['some $|math|$ here', 'some |$math$| here'],
 
+        ['10.|0', '|10.0|'],
+        ['amount 1|0.0', 'amount |10.0|'],
+        ['a $10.|0 b', 'a |$10.0| b'],
+        ['a 10.|0$ b', 'a |10.0$| b'],
+        ['|a $|10.0 b', '|a $10.0 b|'],
+
         ['a `co|de` c', 'a `|code|` c'],
         ['a `|code|` c', 'a |`code`| c'],
         ['a `|co| de` c', 'a `|co de|` c'],
@@ -84,7 +90,7 @@ describe('Grow command', () => {
         const markdown = stripSelection(before);
         const newSelection = GrowCommand.growSelection(markdown, selection);
         if (!newSelection.start || !newSelection.end) {
-            throw Error('Grow command didn\'t return a valid selection');
+            throw Error("Grow command didn't return a valid selection");
         }
 
         const newText = renderSelection(markdown, newSelection);

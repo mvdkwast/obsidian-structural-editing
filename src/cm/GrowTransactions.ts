@@ -20,6 +20,7 @@ const selectionChangedTransactionFilter = EditorState.transactionFilter.of((tran
 });
 
 const growField = StateField.define<GrowState>({
+    // eslint-disable-next-line no-unused-vars
     create(state: EditorState): GrowState {
         return {
             lastCommand: 'SHRINK',
