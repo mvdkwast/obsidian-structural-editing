@@ -1,9 +1,7 @@
 # Structural Editing
 
 > **Warning**
-> This code is work in progress. Please do not deploy on your main
-vault without backups. Commands may change at any time !
-
+> This code is work in progress.
 
 Plugin for [Obsidian](https://obsidian.md) that allows you to manipulate text
 in a structural aware way.  
