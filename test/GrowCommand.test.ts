@@ -6,7 +6,7 @@ import stripSelection = TestUtil.stripSelection;
 
 describe('Grow command (single test for debugging)', () => {
     it('should pass this test', () => {
-        const [before, after] = ['# a\n\nbb\n\n|cc|', '# a\n\n|bb\n\ncc|'];
+        const [before, after] = ['>[!info]\n> cont|ent\n>\nmore content', '>[!info]\n> |content|\n>\nmore content'];
 
         const selection = getSelection(before);
         if (!selection || !selection.start) {
@@ -82,6 +82,9 @@ describe('Grow command', () => {
 
         ['# a\n\n|bb|\n\ncc', '# a\n\n|bb\n\ncc|'],
         ['# a\n\nbb\n\n|cc|', '# a\n\n|bb\n\ncc|'],
+
+        ['>[!info]\n> cont|ent', '>[!info]\n> |content|'],
+        ['>[!info]\n> cont|ent\n>\nmore content', '>[!info]\n> |content|\n>\nmore content'],
     ];
 
     test.each(cases)('Grow: %p', (before, after) => {

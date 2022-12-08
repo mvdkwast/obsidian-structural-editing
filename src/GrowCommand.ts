@@ -20,9 +20,25 @@ export class GrowCommand {
         let nodeWithSelection = result.node;
 
         const parentParagraph = Mdast.findParentParagraph([...result.ancestors, nodeWithSelection]);
-        if (parentParagraph && !Ast.fillsNode(parentParagraph, selection)) {
+        let parentNode = parentParagraph;
+
+        // If the paragraph is in a blockquote, the '>' in front of the first paragraph is removed by the MdParser
+        // at paragraph level. This messes up parsing by the SimpleTextParser, so in that case we want to consider the
+        // blockquote as a paragraph.
+        if (parentNode) {
+            const parentBlockQuote = Mdast.findAncestorOfType(
+                [...result.ancestors, nodeWithSelection],
+                parentNode,
+                'blockquote',
+            );
+            if (parentBlockQuote) {
+                parentNode = parentBlockQuote;
+            }
+        }
+
+        if (parentNode && !Ast.fillsNode(parentNode, selection)) {
             // Node is an unfilled paragraph or paragraph content (text, emphasis, ...)
-            const subParserResult = this.selectInParagraph(markdown, parentParagraph, selection);
+            const subParserResult = this.selectInParagraph(markdown, parentNode, selection);
             if (subParserResult.status === 'SUB_RANGE') {
                 return subParserResult.range!;
             } /* if (subParserResult.status === 'PARENT_RANGE') */ else {
@@ -30,7 +46,7 @@ export class GrowCommand {
                 // if the token has trailing space and all the non-space characters are selected the node should be
                 // considered as selected by the sub-parser, but the parent parser doesn't look inside the block.
 
-                nodeWithSelection = Mdast.findAncestorWithLargerRange(parentParagraph, result.ancestors);
+                nodeWithSelection = Mdast.findAncestorWithLargerRange(parentNode, result.ancestors);
 
                 return {
                     start: nodeWithSelection.position.start!,

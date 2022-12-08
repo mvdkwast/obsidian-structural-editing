@@ -51,6 +51,34 @@ export class Mdast {
         return undefined;
     }
 
+    static findAncestorOfType(nodes: AstNode[], referenceNode: AstNode, type: string): AstNode | undefined {
+        let found = false;
+
+        // iterate over the nodes from right to left
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const currentNode = nodes[i];
+
+            // if we have found the provided node, set the flag and continue
+            if (currentNode === referenceNode) {
+                found = true;
+                continue;
+            }
+
+            // if we have not found the provided node yet, skip this node
+            if (!found) {
+                continue;
+            }
+
+            // if we have found the provided node and this node has the correct type, return it
+            if (currentNode.type === type) {
+                return currentNode;
+            }
+        }
+
+        // if we reach this point, we have not found a node of the correct type, so return undefined
+        return undefined;
+    }
+
     static findAncestorWithLargerRange(node: AstNode, ancestors: AstNode[]): AstNode {
         if (ancestors.length === 0) {
             return node;
