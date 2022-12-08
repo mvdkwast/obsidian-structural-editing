@@ -4,7 +4,7 @@
 > This code is work in progress.
 
 Plugin for [Obsidian](https://obsidian.md) that allows you to manipulate text
-in a structural aware way.  
+in a structure aware way.  
 
 This plugin exposes the following commands, which can be mapped to keyboard shortcuts :
 - `Stuctural Editing: Grow selection` 
