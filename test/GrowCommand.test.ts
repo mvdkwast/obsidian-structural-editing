@@ -6,7 +6,7 @@ import stripSelection = TestUtil.stripSelection;
 
 describe('Grow command (single test for debugging)', () => {
     it('should pass this test', () => {
-        const [before, after] = ['some $ma|th$ here', 'some $|math|$ here'];
+        const [before, after] = ['# a\n\nbb\n\n|cc|', '# a\n\n|bb\n\ncc|'];
 
         const selection = getSelection(before);
         if (!selection || !selection.start) {
@@ -79,6 +79,9 @@ describe('Grow command', () => {
         ['para1\n\npara2\n|\npara3', 'para1\n\n|para2|\n\npara3'],
         ['para1\n\npara2\n\n|para3', 'para1\n\npara2\n\n|para3|'],
         ['para1\n\npara2\n\npara3|', 'para1\n\npara2\n\n|para3|'],
+
+        ['# a\n\n|bb|\n\ncc', '# a\n\n|bb\n\ncc|'],
+        ['# a\n\nbb\n\n|cc|', '# a\n\n|bb\n\ncc|'],
     ];
 
     test.each(cases)('Grow: %p', (before, after) => {

@@ -122,9 +122,20 @@ export class MarkdownASTBuilder {
     }
 
     public static nestSections(tree: Root): void {
-        for (let depth = 6; depth >= 1; --depth) {
-            let currentSection: Section | undefined = undefined;
+        let currentSection: Section | undefined;
 
+        const setCurrentSection = (newSection: Section | undefined) => {
+            if (currentSection) {
+                // remove subsections entry if it is empty, it interferes with boundary detection
+                if (!currentSection.children[2].children.length) {
+                    currentSection.children.length--;
+                }
+            }
+            currentSection = newSection;
+        };
+
+        // process headers from the deepest level to the most shallow (h6 to h1) to build the tree from bottom to top.
+        for (let depth = 6; depth >= 1; --depth) {
             for (let i = 0; i < tree.children.length; ++i) {
                 if (tree.children[i].type === 'heading') {
                     const heading = tree.children[i] as Heading;
@@ -147,7 +158,7 @@ export class MarkdownASTBuilder {
                             },
                         };
 
-                        currentSection = {
+                        setCurrentSection({
                             type: 'section',
                             // @ts-ignore
                             children: [heading, sectionContent, subSections],
@@ -155,12 +166,12 @@ export class MarkdownASTBuilder {
                                 start: heading.position!.start,
                                 end: heading.position!.end,
                             },
-                        };
+                        });
 
                         // @ts-ignore
                         tree.children[i] = currentSection;
                     } else if (heading.depth < depth) {
-                        currentSection = undefined;
+                        setCurrentSection(undefined);
                     }
                 } else {
                     if (currentSection) {
@@ -190,6 +201,8 @@ export class MarkdownASTBuilder {
                     }
                 }
             }
+
+            setCurrentSection(undefined);
 
             tree.children = tree.children.filter((node: any) => !!node);
         }
