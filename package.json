@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-structural-editing",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Structure aware editor commands, including smart grow/shrink of the selection",
 	"main": "main.js",
 	"scripts": {
